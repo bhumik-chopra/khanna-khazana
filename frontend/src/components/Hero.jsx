@@ -25,7 +25,7 @@ const Hero = ({ onOrderClick }) => {
             }}
           >
             Your favourite{' '}
-            <span style={{ color: '#ff7a1a' }}>ghar-ka-khana</span> <br />
+            <span style={{ color: '#ff7a1a' }}>khana</span> <br />
             is now just a tap away.
           </h1>
 
