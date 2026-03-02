@@ -1,13 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Toast from "../components/Toast";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
 export default function AdminPanel() {
   const navigate = useNavigate();
 
-  // card fields
+  // dish fields
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
@@ -24,50 +24,40 @@ export default function AdminPanel() {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [newCategory, setNewCategory] = useState("");
 
-  const [toast, setToast] = useState({
-    open: false,
-    type: "success",
-    title: "",
-    message: ""
-  });
+  const [toast, setToast] = useState({ open: false, type: "success", title: "", message: "" });
+  const showToast = (type, title, message) => setToast({ open: true, type, title, message });
 
-  const showToast = (type, title, message) =>
-    setToast({ open: true, type, title, message });
-
-  // ✅ fetch categories
-  const fetchCategories = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/dishes/categories`);
-      const data = await res.json();
-
-      if (res.ok && Array.isArray(data)) {
-        setCategories(data);
-        // pick first non-All if available
-        const first = data.find((c) => c && c !== "All") || "All";
-        setSelectedCategory((prev) => prev || first);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  const token = useMemo(() => localStorage.getItem("admin_token"), []);
 
   useEffect(() => {
-    fetchCategories();
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/dishes/categories`);
+        const data = await res.json();
+        if (res.ok && Array.isArray(data) && data.length) {
+          // remove "All" from admin selectable list
+          const usable = data.filter((c) => c && c !== "All");
+          setCategories(usable);
+          if (!selectedCategory && usable.length) setSelectedCategory(usable[0]);
+        }
+      } catch {
+        // ignore
+      }
+    })();
     // eslint-disable-next-line
   }, []);
+
+  const finalCategory =
+    categoryMode === "new" ? newCategory.trim() : (selectedCategory || "").trim();
 
   const logout = () => {
     localStorage.removeItem("admin_token");
     navigate("/login");
   };
 
-  const finalCategory =
-    categoryMode === "new" ? newCategory.trim() : (selectedCategory || "").trim();
-
   const submit = async (e) => {
     e.preventDefault();
 
-    const token = localStorage.getItem("admin_token");
     if (!token) {
       showToast("error", "Not logged in", "Please login first.");
       navigate("/login");
@@ -86,9 +76,9 @@ export default function AdminPanel() {
 
     try {
       const fd = new FormData();
-      fd.append("name", name.trim());
-      fd.append("description", (description || "").trim());
-      fd.append("price", String(price));
+      fd.append("name", name);
+      fd.append("description", description);
+      fd.append("price", price);
       fd.append("category", finalCategory);
 
       fd.append("rating", rating);
@@ -113,15 +103,16 @@ export default function AdminPanel() {
 
       showToast("success", "Dish added", `${data.name} added successfully.`);
 
-      // ✅ if new category created, refresh list
+      // refresh categories if new one created
       if (categoryMode === "new" && newCategory.trim()) {
-        await fetchCategories();
+        const c = newCategory.trim();
+        setCategories((prev) => (prev.includes(c) ? prev : [c, ...prev]));
+        setSelectedCategory(c);
         setCategoryMode("existing");
-        setSelectedCategory(newCategory.trim());
         setNewCategory("");
       }
 
-      // reset form
+      // reset
       setName("");
       setDescription("");
       setPrice("");
@@ -130,24 +121,15 @@ export default function AdminPanel() {
       setPrepTime("25-35 min");
       setTags("");
       setIsBestseller(false);
-    } catch (err) {
-      console.error(err);
+    } catch {
       showToast("error", "Network error", "Backend not reachable");
     }
   };
 
   return (
     <div className="container" style={{ padding: "2rem" }}>
-      {/* top bar */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          marginBottom: 14
-        }}
-      >
+      {/* Top bar */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <div>
           <h2 style={{ marginBottom: "0.5rem" }}>Admin Panel</h2>
           <p style={{ color: "var(--text-muted)", marginTop: 0 }}>
@@ -158,9 +140,7 @@ export default function AdminPanel() {
         <div style={{ display: "flex", gap: 10 }}>
           <button
             className="btn"
-            onClick={() =>
-              window.open("http://localhost:3000", "_blank", "noopener,noreferrer")
-            }
+            onClick={() => window.open("http://localhost:3000", "_blank", "noopener,noreferrer")}
             style={{
               background: "linear-gradient(90deg, #ff7a1a 0%, #008c4a 100%)",
               color: "white",
@@ -198,13 +178,7 @@ export default function AdminPanel() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Dish name *"
-          style={{
-            width: "100%",
-            padding: 12,
-            borderRadius: 12,
-            border: "1px solid rgba(0,0,0,0.12)",
-            marginBottom: 10
-          }}
+          style={{ width: "100%", padding: 12, borderRadius: 12, border: "1px solid rgba(0,0,0,0.12)", marginBottom: 10 }}
         />
 
         <textarea
@@ -212,13 +186,7 @@ export default function AdminPanel() {
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Description"
           rows={3}
-          style={{
-            width: "100%",
-            padding: 12,
-            borderRadius: 12,
-            border: "1px solid rgba(0,0,0,0.12)",
-            marginBottom: 10
-          }}
+          style={{ width: "100%", padding: 12, borderRadius: 12, border: "1px solid rgba(0,0,0,0.12)", marginBottom: 10 }}
         />
 
         <input
@@ -226,25 +194,15 @@ export default function AdminPanel() {
           onChange={(e) => setPrice(e.target.value)}
           placeholder="Price *"
           type="number"
-          style={{
-            width: "100%",
-            padding: 12,
-            borderRadius: 12,
-            border: "1px solid rgba(0,0,0,0.12)",
-            marginBottom: 10
-          }}
+          style={{ width: "100%", padding: 12, borderRadius: 12, border: "1px solid rgba(0,0,0,0.12)", marginBottom: 10 }}
         />
 
-        {/* category selector */}
+        {/* category */}
         <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
           <select
             value={categoryMode}
             onChange={(e) => setCategoryMode(e.target.value)}
-            style={{
-              padding: 12,
-              borderRadius: 12,
-              border: "1px solid rgba(0,0,0,0.12)"
-            }}
+            style={{ padding: 12, borderRadius: 12, border: "1px solid rgba(0,0,0,0.12)" }}
           >
             <option value="existing">Choose existing category</option>
             <option value="new">Create new category</option>
@@ -254,32 +212,24 @@ export default function AdminPanel() {
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              style={{
-                flex: 1,
-                padding: 12,
-                borderRadius: 12,
-                border: "1px solid rgba(0,0,0,0.12)"
-              }}
+              style={{ flex: 1, padding: 12, borderRadius: 12, border: "1px solid rgba(0,0,0,0.12)" }}
             >
-              {categories
-                .filter((c) => c && c !== "All")
-                .map((c) => (
+              {categories.length === 0 ? (
+                <option value="">No categories found</option>
+              ) : (
+                categories.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
-                ))}
+                ))
+              )}
             </select>
           ) : (
             <input
               value={newCategory}
               onChange={(e) => setNewCategory(e.target.value)}
               placeholder="New category name *"
-              style={{
-                flex: 1,
-                padding: 12,
-                borderRadius: 12,
-                border: "1px solid rgba(0,0,0,0.12)"
-              }}
+              style={{ flex: 1, padding: 12, borderRadius: 12, border: "1px solid rgba(0,0,0,0.12)" }}
             />
           )}
         </div>
@@ -291,23 +241,13 @@ export default function AdminPanel() {
             placeholder="Rating (e.g. 4.5)"
             type="number"
             step="0.1"
-            style={{
-              flex: 1,
-              padding: 12,
-              borderRadius: 12,
-              border: "1px solid rgba(0,0,0,0.12)"
-            }}
+            style={{ flex: 1, padding: 12, borderRadius: 12, border: "1px solid rgba(0,0,0,0.12)" }}
           />
           <input
             value={prepTime}
             onChange={(e) => setPrepTime(e.target.value)}
             placeholder='Prep time (e.g. "25-35 min")'
-            style={{
-              flex: 1,
-              padding: 12,
-              borderRadius: 12,
-              border: "1px solid rgba(0,0,0,0.12)"
-            }}
+            style={{ flex: 1, padding: 12, borderRadius: 12, border: "1px solid rgba(0,0,0,0.12)" }}
           />
         </div>
 
@@ -315,23 +255,10 @@ export default function AdminPanel() {
           value={tags}
           onChange={(e) => setTags(e.target.value)}
           placeholder="Tags (comma separated) e.g. Creamy, Rich"
-          style={{
-            width: "100%",
-            padding: 12,
-            borderRadius: 12,
-            border: "1px solid rgba(0,0,0,0.12)",
-            marginBottom: 10
-          }}
+          style={{ width: "100%", padding: 12, borderRadius: 12, border: "1px solid rgba(0,0,0,0.12)", marginBottom: 10 }}
         />
 
-        <label
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            marginBottom: 10
-          }}
-        >
+        <label style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
           <input
             type="checkbox"
             checked={isBestseller}
@@ -347,10 +274,7 @@ export default function AdminPanel() {
           style={{ width: "100%", marginBottom: 12 }}
         />
 
-        <button
-          className="btn btn-primary"
-          style={{ width: "100%", justifyContent: "center" }}
-        >
+        <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }}>
           Save Dish
         </button>
       </form>

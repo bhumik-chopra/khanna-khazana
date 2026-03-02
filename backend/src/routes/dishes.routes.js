@@ -1,24 +1,30 @@
 const express = require("express");
+const multer = require("multer");
+
 const Dish = require("../models/Dish");
+const { requireAdmin } = require("../middleware/auth");
+const cloudinary = require("../config/cloudinary");
 
 const router = express.Router();
-const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
-const { requireAdmin } = require("../middleware/auth");
 
-// ✅ Make sure uploads folder exists
-const uploadsDir = path.join(__dirname, "..", "uploads");
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+// ✅ use memory storage (NO uploads folder)
+const upload = multer({ storage: multer.memoryStorage() });
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadsDir),
-  filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname)
-});
+// helper: upload buffer to cloudinary
+function uploadToCloudinary(buffer, folder = "khanna-khazana") {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder },
+      (err, result) => {
+        if (err) return reject(err);
+        resolve(result);
+      }
+    );
+    stream.end(buffer);
+  });
+}
 
-const upload = multer({ storage });
-
-// ✅ GET /api/dishes
+// GET /api/dishes
 router.get("/", async (req, res) => {
   try {
     const dishes = await Dish.find({}).sort({ createdAt: -1 });
@@ -29,52 +35,43 @@ router.get("/", async (req, res) => {
   }
 });
 
-// ✅ GET /api/dishes/categories
+// GET /api/dishes/categories
 router.get("/categories", async (req, res) => {
   try {
     const categories = await Dish.distinct("category");
-    const cleaned = categories.filter(Boolean).map(c => c.trim());
-    res.json(["All", ...cleaned]);
+    res.json(["All", ...categories.filter(Boolean)]);
   } catch (err) {
     res.status(500).json({ message: "Failed to fetch categories" });
   }
 });
 
-// ✅ POST /api/dishes (admin only) - multipart/form-data
+// POST /api/dishes (admin only) multipart/form-data
 router.post("/", requireAdmin, upload.single("image"), async (req, res) => {
   try {
-    const {
-      name,
-      description,
-      price,
-      category,
-      rating,
-      prepTime,
-      tags,
-      isBestseller
-    } = req.body;
+    const { name, description, price, category, rating, prepTime, tags, isBestseller } = req.body;
 
     if (!name || !price || !category || !req.file) {
       return res.status(400).json({ message: "name, price, category, image are required" });
     }
 
-    const imageUrl = `/uploads/${req.file.filename}`;
-
-    const tagsArray =
-      typeof tags === "string"
-        ? tags.split(",").map(t => t.trim()).filter(Boolean)
-        : [];
+    // ✅ upload image bytes to cloudinary
+    const uploaded = await uploadToCloudinary(req.file.buffer);
 
     const dish = await Dish.create({
       name: name.trim(),
-      description: description || "",
+      description: (description || "").trim(),
       price: Number(price),
       category: category.trim(),
-      imageUrl,
+
+      imageUrl: uploaded.secure_url,
+
+      tags: (tags || "")
+        .split(",")
+        .map(t => t.trim())
+        .filter(Boolean),
 
       rating: rating ? Number(rating) : 4.5,
       prepTime: prepTime || "25-35 min",
-      tags: tagsArray,
       isBestseller: String(isBestseller) === "true"
     });
 

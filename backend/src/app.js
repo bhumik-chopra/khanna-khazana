@@ -1,18 +1,29 @@
 const express = require("express");
 const cors = require("cors");
-const path = require("path");
 
 const dishesRoutes = require("./routes/dishes.routes");
 const ordersRoutes = require("./routes/orders.routes");
 const adminRoutes = require("./routes/admin.routes");
 
 const app = express();
-
 app.use(express.json());
-app.use(cors({ origin: process.env.CORS_ORIGIN || "*", credentials: true }));
 
-// ✅ serve uploaded images (folder: backend/uploads)
-app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
+// ✅ allow multiple origins from env
+const allowed = (process.env.CORS_ORIGIN || "*")
+  .split(",")
+  .map(s => s.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true); // curl/postman
+      if (allowed.includes("*") || allowed.includes(origin)) return cb(null, true);
+      return cb(new Error("CORS blocked: " + origin));
+    },
+    credentials: true
+  })
+);
 
 app.get("/health", (req, res) => res.json({ ok: true }));
 

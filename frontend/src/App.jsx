@@ -2,6 +2,8 @@ import './App.css';
 import React, { useMemo, useState, useEffect } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 
+import LoginModal from './components/LoginModal';
+
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import CategoryFilter from './components/CategoryFilter';
@@ -22,9 +24,7 @@ const API_BASE = 'http://localhost:5000';
 //////////////////////////////////////////////////////////
 // FLOATING DOCK COMPONENT
 //////////////////////////////////////////////////////////
-
-function FloatingDock({ cartCount, onCartClick }) {
-  const navigate = useNavigate();
+function FloatingDock({ onLoginClick }) {
   const [visible, setVisible] = useState(true);
   const [lastScroll, setLastScroll] = useState(0);
 
@@ -33,74 +33,62 @@ function FloatingDock({ cartCount, onCartClick }) {
     let ticking = false;
 
     const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          const current = window.scrollY;
+      if (ticking) return;
 
-          if (current < 80) {
-            setVisible(true);
-          } else if (current > lastScroll) {
-            setVisible(false);
-          } else {
-            setVisible(true);
-          }
+      ticking = true;
+      window.requestAnimationFrame(() => {
+        const current = window.scrollY;
 
-          setLastScroll(current);
-          ticking = false;
-        });
+        if (current < 80) {
+          setVisible(true);
+        } else if (current > lastScroll) {
+          setVisible(false);
+        } else {
+          setVisible(true);
+        }
 
-        ticking = true;
-      }
+        setLastScroll(current);
+        ticking = false;
+      });
     };
 
-    window.addEventListener('scroll', handleScroll);
-
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScroll]);
 
   const items = [
     {
-      label: "Home",
+      label: 'Home',
       icon: <span>Home</span>,
       onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' })
     },
     {
-      label: "Menu",
+      label: 'Menu',
       icon: <span>Menu</span>,
-      onClick: () =>
-        document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' })
+      onClick: () => document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' })
     },
     {
-      label: "Login",
+      label: 'Login',
       icon: <span>Login</span>,
-      onClick: () =>{window.open("http://localhost:3001/login", "_blank")}
+      onClick: onLoginClick
     }
   ];
 
   return (
     <div
       style={{
-        position: "fixed",
-        top: "72px",
-        left: "50%",
-        transform: visible
-          ? "translate(-50%, 0px)"
-          : "translate(-50%, -120px)",
+        position: 'fixed',
+        top: '72px',
+        left: '50%',
+        transform: visible ? 'translate(-50%, 0px)' : 'translate(-50%, -120px)',
         opacity: visible ? 1 : 0,
-        transition:
-          "transform 0.45s cubic-bezier(.22,.61,.36,1), opacity 0.35s ease",
+        transition: 'transform 0.45s cubic-bezier(.22,.61,.36,1), opacity 0.35s ease',
         zIndex: 9999,
-        pointerEvents: "none"
+        pointerEvents: 'none'
       }}
     >
-      <div style={{ pointerEvents: "auto" }}>
-        <Dock
-          items={items}
-          magnification={60}
-          baseItemSize={40}
-          distance={140}
-          panelHeight={64}
-        />
+      <div style={{ pointerEvents: 'auto' }}>
+        <Dock items={items} magnification={60} baseItemSize={40} distance={140} panelHeight={64} />
       </div>
     </div>
   );
@@ -109,37 +97,27 @@ function FloatingDock({ cartCount, onCartClick }) {
 //////////////////////////////////////////////////////////
 // MAIN SITE
 //////////////////////////////////////////////////////////
-
 function MainSite() {
-
-  const navigate = useNavigate();
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
 
   const [dishes, setDishes] = useState([]);
-  const [categories, setCategories] = useState(["All"]);
+  const [categories, setCategories] = useState(['All']);
   const [activeCategory, setActiveCategory] = useState('All');
 
   const [cart, setCart] = useState({});
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  const [toast, setToast] = useState({
-    open: false,
-    type: 'success',
-    title: '',
-    message: ''
-  });
-
-  const showToast = (type, title, message) =>
-    setToast({ open: true, type, title, message });
+  const [toast, setToast] = useState({ open: false, type: 'success', title: '', message: '' });
+  const showToast = (type, title, message) => setToast({ open: true, type, title, message });
 
   /////////////////////////////////////
   // LOAD DISHES FROM API
   /////////////////////////////////////
-
   const loadDishes = async () => {
     try {
       const res = await fetch(`${API_BASE}/api/dishes`);
       const data = await res.json();
-      setDishes(data);
+      setDishes(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
     }
@@ -149,8 +127,10 @@ function MainSite() {
     try {
       const res = await fetch(`${API_BASE}/api/dishes/categories`);
       const data = await res.json();
-      setCategories(data);
-    } catch {}
+      setCategories(Array.isArray(data) ? data : ['All']);
+    } catch {
+      // ignore
+    }
   };
 
   useEffect(() => {
@@ -158,44 +138,35 @@ function MainSite() {
     loadCategories();
   }, []);
 
-  /////////////////////////////////////
-  // AUTO REFRESH WHEN ADMIN ADDS DISH
-  /////////////////////////////////////
-
+  // auto refresh when tab focus returns (after admin added dish)
   useEffect(() => {
-
     const refresh = () => {
       loadDishes();
       loadCategories();
     };
-
-    window.addEventListener("focus", refresh);
-
-    return () => window.removeEventListener("focus", refresh);
-
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
   }, []);
 
   /////////////////////////////////////
   // FILTER DISHES
   /////////////////////////////////////
-
   const filteredDishes = useMemo(() => {
-    if (activeCategory === "All") return dishes;
-    return dishes.filter(d => d.category === activeCategory);
+    if (activeCategory === 'All') return dishes;
+    return dishes.filter((d) => d.category === activeCategory);
   }, [dishes, activeCategory]);
 
   /////////////////////////////////////
   // CART LOGIC
   /////////////////////////////////////
-
   const cartCount = useMemo(
     () => Object.values(cart).reduce((sum, item) => sum + item.quantity, 0),
     [cart]
   );
 
   const handleAddToCart = (dish) => {
-    setCart(prev => {
-      const id = dish.id || dish._id;
+    setCart((prev) => {
+      const id = dish.id || dish._id; // backend sends id, but fallback safe
       const existing = prev[id];
       const quantity = existing ? existing.quantity + 1 : 1;
 
@@ -209,9 +180,7 @@ function MainSite() {
   const handleIncrease = handleAddToCart;
 
   const handleDecrease = (dishId) => {
-
-    setCart(prev => {
-
+    setCart((prev) => {
       const existing = prev[dishId];
       if (!existing) return prev;
 
@@ -233,10 +202,8 @@ function MainSite() {
   /////////////////////////////////////
   // CHECKOUT
   /////////////////////////////////////
-
   const handleCheckout = async () => {
-
-    const items = Object.values(cart).map(item => ({
+    const items = Object.values(cart).map((item) => ({
       id: item.id,
       name: item.name,
       price: item.price,
@@ -246,56 +213,58 @@ function MainSite() {
     if (!items.length) return;
 
     try {
-
       const res = await fetch(`${API_BASE}/api/orders`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items })
       });
 
       const data = await res.json();
 
-      if (!res.ok)
-        return showToast("error", "Checkout failed", data.message);
+      if (!res.ok) return showToast('error', 'Checkout failed', data?.message || 'Try again');
 
-      showToast("success", "Order placed", `Order ID ${data.orderId}`);
+      showToast('success', 'Order placed', `Order ID ${data.orderId}`);
 
       setCart({});
       setIsCartOpen(false);
-
     } catch {
-      showToast("error", "Network error", "Try again");
+      showToast('error', 'Network error', 'Try again');
     }
   };
 
   /////////////////////////////////////
   // RENDER
   /////////////////////////////////////
-
   return (
-
     <div className="app-shell">
-<Navbar
-  cartCount={cartCount}
-  onCartClick={() => setIsCartOpen(true)}
-  onLoginClick={() => window.open("http://localhost:3001/login", "_blank")}
-/>
-
-      {/* FLOATING DOCK */}
-      <FloatingDock
+      <Navbar
         cartCount={cartCount}
         onCartClick={() => setIsCartOpen(true)}
+        onLoginClick={() => setLoginModalOpen(true)}
+      />
+
+      {/* FLOATING DOCK */}
+      <FloatingDock onLoginClick={() => setLoginModalOpen(true)} />
+
+      {/* LOGIN MODAL */}
+      <LoginModal
+        open={loginModalOpen}
+        onClose={() => setLoginModalOpen(false)}
+        onFoodie={() => {
+          setLoginModalOpen(false);
+          // dummy for now
+        }}
+        onPartner={() => {
+          setLoginModalOpen(false);
+          window.open('http://localhost:3001/login', '_blank', 'noopener,noreferrer');
+        }}
       />
 
       <main>
-
         <Hero />
 
         <section id="menu" className="section">
           <div className="container">
-
             <CategoryFilter
               categories={categories}
               activeCategory={activeCategory}
@@ -309,13 +278,11 @@ function MainSite() {
               onIncrease={handleIncrease}
               onDecrease={handleDecrease}
             />
-
           </div>
         </section>
 
         <HowItWorks />
         <Testimonials />
-
       </main>
 
       <CartDrawer
@@ -334,9 +301,8 @@ function MainSite() {
         type={toast.type}
         title={toast.title}
         message={toast.message}
-        onClose={() => setToast(t => ({ ...t, open: false }))}
+        onClose={() => setToast((t) => ({ ...t, open: false }))}
       />
-
     </div>
   );
 }
@@ -344,26 +310,19 @@ function MainSite() {
 //////////////////////////////////////////////////////////
 // ROUTES
 //////////////////////////////////////////////////////////
-
 export default function App() {
-
   const navigate = useNavigate();
 
   return (
     <Routes>
-
       <Route path="/" element={<MainSite />} />
 
       <Route
         path="/admin/login"
-        element={<AdminLogin onSuccess={() => navigate("/admin/panel")} />}
+        element={<AdminLogin onSuccess={() => navigate('/admin/panel')} />}
       />
 
-      <Route
-        path="/admin/panel"
-        element={<AdminPanel />}
-      />
-
+      <Route path="/admin/panel" element={<AdminPanel />} />
     </Routes>
   );
 }
