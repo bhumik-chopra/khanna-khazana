@@ -1,0 +1,113 @@
+/* OUTER WRAPPER */
+.dock-outer {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+
+  /* allow pop outside */
+  overflow: visible;
+  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+  pointer-events: none;
+}
+
+
+/* MAIN FLOATING BOX */
+.dock-panel {
+  pointer-events: auto;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* tighter spacing */
+  gap: 10px;
+
+  /* smaller box */
+  padding: 10px 16px;
+
+  border-radius: 20px;
+
+  background: linear-gradient(
+    90deg,
+    rgba(255, 122, 26, 0.95),
+    rgba(0, 140, 74, 0.95)
+  );
+
+  border: 2px solid rgba(255,255,255,0.35);
+
+  box-shadow:
+    0 14px 36px rgba(0,0,0,0.22),
+    0 4px 12px rgba(0,0,0,0.14);
+
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+
+  overflow: visible;
+}
+
+
+/* INDIVIDUAL BUTTON */
+.dock-item {
+
+  /* smaller base size */
+  min-width: 40px;
+  height: 40px;
+
+  padding: 0 40px;
+
+  border-radius: 14px;
+
+  border: none;
+  outline: none;
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(255,255,255,0.96);
+  color: #111;
+
+  box-shadow:
+    0 6px 14px rgba(0,0,0,0.14),
+    0 2px 6px rgba(0,0,0,0.10);
+
+  transition:
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+
+/* HOVER SHADOW */
+.dock-item:hover {
+  box-shadow:
+    0 18px 36px rgba(0,0,0,0.22),
+    0 6px 14px rgba(0,0,0,0.14);
+}
+
+
+/* ICON / TEXT */
+.dock-icon {
+  width: 100%;
+  height: 100%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-weight: 800;
+
+  /* smaller text */
+  font-size: 14px;
+
+  padding: 0 6px;
+
+  user-select: none;
+}
+
+
+/* LABEL hidden */
+.dock-label {
+  display: none !important;
+}

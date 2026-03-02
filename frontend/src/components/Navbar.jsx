@@ -1,6 +1,11 @@
 import React from 'react';
 
-const Navbar = ({ cartCount, onCartClick }) => {
+const Navbar = ({ onCartClick }) => {
+  const scrollTo = (id) => {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <header
       style={{
@@ -20,49 +25,29 @@ const Navbar = ({ cartCount, onCartClick }) => {
           padding: '0.85rem 1.25rem'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: '50%',
-              background: 'rgba(255,255,255,0.16)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 800,
-              fontSize: '1.1rem'
-            }}
-          >
-            KK
+        <div>
+          <div style={{ fontWeight: 900, letterSpacing: '0.03em', fontSize: '1.1rem' }}>
+            Khanna Khazana
           </div>
-          <div>
-            <div style={{ fontWeight: 800, letterSpacing: '0.03em' }}>
-              Khanna Khazana
-            </div>
-            <div style={{ fontSize: '0.72rem', opacity: 0.85 }}>
-              Desi Swad. Smart Delivery.
-            </div>
+          <div style={{ fontSize: '0.78rem', opacity: 0.9 }}>
+            Desi Swad. Smart Delivery.
           </div>
         </div>
 
-        <nav
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '1.2rem',
-            fontSize: '0.9rem'
-          }}
-        >
-          <a href="#menu" style={{ color: 'var(--white)', textDecoration: 'none' }}>
-            Menu
-          </a>
-          <a href="#how-it-works" style={{ color: 'var(--white)', textDecoration: 'none' }}>
+        <div style={{ display: 'flex', gap: '0.7rem', alignItems: 'center' }}>
+          {/* ✅ How it works moved here */}
+          <button
+            className="btn"
+            style={{
+              background: 'rgba(255,255,255,0.18)',
+              color: 'var(--white)',
+              paddingInline: '1.0rem',
+              border: '1px solid rgba(255,255,255,0.25)'
+            }}
+            onClick={() => scrollTo('how-it-works')}
+          >
             How it works
-          </a>
-          <a href="#testimonials" style={{ color: 'var(--white)', textDecoration: 'none' }}>
-            Love from foodies
-          </a>
+          </button>
 
           <button
             className="btn"
@@ -73,23 +58,9 @@ const Navbar = ({ cartCount, onCartClick }) => {
             }}
             onClick={onCartClick}
           >
-            🛒 Cart
-            {cartCount > 0 && (
-              <span
-                style={{
-                  background: '#ff7a1a',
-                  color: 'var(--white)',
-                  borderRadius: '999px',
-                  padding: '0.1rem 0.55rem',
-                  fontSize: '0.75rem',
-                  fontWeight: 700
-                }}
-              >
-                {cartCount}
-              </span>
-            )}
+            Cart
           </button>
-        </nav>
+        </div>
       </div>
     </header>
   );

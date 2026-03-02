@@ -1,18 +1,20 @@
 const mongoose = require("mongoose");
 
-const dishSchema = new mongoose.Schema(
+const DishSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true, trim: true },
+    name: { type: String, required: true },
     description: { type: String, default: "" },
-    price: { type: Number, required: true, min: 0 },
-    imageUrl: { type: String, required: true }, // URL served by backend (uploads)
-    category: { type: String, default: "All" },
-    tags: { type: [String], default: [] },
-    rating: { type: Number, default: 4.5, min: 0, max: 5 },
+    price: { type: Number, required: true },
+    category: { type: String, required: true },
+
+    imageUrl: { type: String, required: true },
+
+    rating: { type: Number, default: 4.5 },
     prepTime: { type: String, default: "25-35 min" },
+    tags: { type: [String], default: [] },
     isBestseller: { type: Boolean, default: false }
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Dish", dishSchema);
+module.exports = mongoose.model("Dish", DishSchema);
