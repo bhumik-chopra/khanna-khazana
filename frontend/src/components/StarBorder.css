@@ -1,0 +1,51 @@
+.star-border-container {
+  position: relative;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* ✅ hidden by default */
+.border-gradient-bottom,
+.border-gradient-top {
+  position: absolute;
+  inset: -70%;
+  opacity: 0;                 /* 👈 invisible when static */
+  z-index: 0;
+  pointer-events: none;
+  filter: blur(6px);
+  transition: opacity 0.18s ease; /* smooth appear */
+}
+
+/* ✅ only show + animate on hover */
+.star-border-container:hover .border-gradient-bottom,
+.star-border-container:hover .border-gradient-top {
+  opacity: 0.95; /* 👈 border appears only on hover */
+}
+
+.star-border-container:hover .border-gradient-bottom {
+  animation: star-movement-bottom linear infinite;
+}
+
+.star-border-container:hover .border-gradient-top {
+  animation: star-movement-top linear infinite;
+}
+
+.inner-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+}
+
+/* ✅ smooth continuous motion */
+@keyframes star-movement-bottom {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-35%); }
+}
+
+@keyframes star-movement-top {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(35%); }
+}

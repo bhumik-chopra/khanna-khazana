@@ -9,6 +9,7 @@ const dishSchema = new mongoose.Schema(
 
     // ✅ Cloudinary URL
     imageUrl: { type: String, required: true },
+    imagePublicId: { type: String, required: true }, // ✅ Store public ID for deletion
 
     tags: { type: [String], default: [] },
     rating: { type: Number, default: 4.5 },

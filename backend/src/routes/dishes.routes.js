@@ -24,6 +24,16 @@ function uploadToCloudinary(buffer, folder = "khanna-khazana") {
   });
 }
 
+// helper: delete cloudinary by public_id
+async function deleteFromCloudinary(publicId) {
+  if (!publicId) return;
+  try {
+    await cloudinary.uploader.destroy(publicId);
+  } catch (e) {
+    console.warn("⚠️ Cloudinary delete failed:", e?.message);
+  }
+}
+
 // GET /api/dishes
 router.get("/", async (req, res) => {
   try {
@@ -64,6 +74,8 @@ router.post("/", requireAdmin, upload.single("image"), async (req, res) => {
       category: category.trim(),
 
       imageUrl: uploaded.secure_url,
+      // ✅ save public_id so we can delete later
+      imagePublicId: uploaded.public_id,
 
       tags: (tags || "")
         .split(",")
@@ -79,6 +91,27 @@ router.post("/", requireAdmin, upload.single("image"), async (req, res) => {
   } catch (err) {
     console.error("❌ create dish:", err);
     res.status(500).json({ message: "Failed to create dish" });
+  }
+});
+
+// ✅ DELETE /api/dishes/:id (admin only)
+router.delete("/:id", requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const dish = await Dish.findById(id);
+    if (!dish) return res.status(404).json({ message: "Dish not found" });
+
+    // ✅ delete image from cloudinary (if stored)
+    await deleteFromCloudinary(dish.imagePublicId);
+
+    // ✅ delete from DB
+    await Dish.findByIdAndDelete(id);
+
+    res.json({ message: "Dish deleted", id });
+  } catch (err) {
+    console.error("❌ delete dish:", err);
+    res.status(500).json({ message: "Failed to delete dish" });
   }
 });
 
