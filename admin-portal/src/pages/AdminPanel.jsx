@@ -209,7 +209,7 @@ export default function AdminPanel() {
         <div style={{ display: "flex", gap: 10 }}>
           <button
             className="btn"
-            onClick={() => window.open("http://localhost:3000", "_blank", "noopener,noreferrer")}
+            onClick={() => window.open("https://khanna-khazana-4.onrender.com", "_blank", "noopener,noreferrer")}
             style={{
               background: "linear-gradient(90deg, #ff7a1a 0%, #008c4a 100%)",
               color: "white",

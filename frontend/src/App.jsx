@@ -256,7 +256,7 @@ function MainSite() {
         }}
         onPartner={() => {
           setLoginModalOpen(false);
-          window.open('http://localhost:3001/login', '_blank', 'noopener,noreferrer');
+          window.open('https://khanna-khazana-5.onrender.com', '_blank', 'noopener,noreferrer');
         }}
       />
 

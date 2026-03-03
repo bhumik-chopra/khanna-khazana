@@ -95,7 +95,7 @@ export default function AdminLogin() {
           type="button"
           className="btn"
           onClick={() =>
-            window.open("http://localhost:3000", "_blank", "noopener,noreferrer")
+            window.open("https://khanna-khazana-4.onrender.com", "_blank", "noopener,noreferrer")
           }
           style={{
             width: "100%",

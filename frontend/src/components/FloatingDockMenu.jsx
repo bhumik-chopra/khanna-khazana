@@ -55,7 +55,7 @@ const FloatingDockMenu = ({ cartCount = 0, onCartClick }) => {
     {
       label: 'Login',
       icon: <TextIcon text="Login" />,
-      onClick: () =>{window.open("http://localhost:3001/login", "_blank")}
+      onClick: () =>{window.open("https://khanna-khazana-5.onrender.com", "_blank")}
     }
   ];
 
