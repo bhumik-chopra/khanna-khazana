@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Toast from "../components/Toast";
 
-const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
+const API_BASE =
+  process.env.REACT_APP_API_BASE || "https://khanna-khazana-3.onrender.com";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
