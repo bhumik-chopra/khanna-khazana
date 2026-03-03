@@ -23,8 +23,6 @@ const corsOptions = {
   credentials: true,
 };
 
-app.use(cors(corsOptions));
-app.options("/.*/", cors(corsOptions)); // ✅ IMPORTANT
 
 app.get("/health", (req, res) => res.json({ ok: true }));
 
