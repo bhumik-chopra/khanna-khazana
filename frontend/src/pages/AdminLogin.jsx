@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import Toast from "../components/Toast";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
 export default function AdminLogin({ onSuccess }) {
   const [username, setUsername] = useState("");

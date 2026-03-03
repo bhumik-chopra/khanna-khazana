@@ -1,7 +1,7 @@
 import React from "react";
 import StarBorder from "./StarBorder";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
 const qtyBtnStyle = {
   width: 34,

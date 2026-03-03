@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Toast from "../components/Toast";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
 export default function AdminPanel() {
   const navigate = useNavigate();
