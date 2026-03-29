@@ -1,34 +1,19 @@
-import React from 'react';
+import React from "react";
 
 const Footer = () => {
   return (
-    <footer
-      style={{
-        marginTop: 'auto',
-        background:
-          'linear-gradient(90deg, rgba(255,122,26,0.1), rgba(255,255,255,0.9), rgba(0,140,74,0.1))',
-        borderTop: '1px solid rgba(0,0,0,0.03)'
-      }}
-    >
-      <div
-        className="container"
-        style={{
-          padding: '1.2rem 1.25rem',
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'space-between',
-          gap: '0.8rem',
-          fontSize: '0.8rem',
-          alignItems: 'center'
-        }}
-      >
+    <footer className="site-footer">
+      <div className="container site-footer-inner">
         <div>
-          © {new Date().getFullYear()} <strong>Khanna Khazana</strong>. All rights
-          reserved.
+          <div className="site-footer-brand">Khanna Khazana</div>
+          <div className="site-footer-copy">
+            © {new Date().getFullYear()} All rights reserved.
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <span>Made with ❤️ for foodies everywhere.</span>
-          <span style={{ fontWeight: 600, color: '#008c4a' }}>India · Orange · White · Green</span>
+        <div className="site-footer-tags">
+          <span>Food design system</span>
+          <span>Orange / White / Green</span>
+          <span>Interactive hover UI</span>
         </div>
       </div>
     </footer>

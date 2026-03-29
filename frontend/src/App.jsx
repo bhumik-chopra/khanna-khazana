@@ -1,31 +1,61 @@
-import './App.css';
-import React, { useMemo, useState, useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import "./App.css";
+import React, { useMemo, useState, useEffect } from "react";
+import { Routes, Route } from "react-router-dom";
 
-import LoginModal from './components/LoginModal';
-
-import Navbar from './components/Navbar';
-import Hero from './components/Hero';
-import CategoryFilter from './components/CategoryFilter';
-import DishGrid from './components/DishGrid';
-import HowItWorks from './components/HowItWorks';
-import Testimonials from './components/Testimonials';
-import CartDrawer from './components/CartDrawer';
-import Footer from './components/Footer';
-import Toast from './components/Toast';
-
-import Dock from './components/Dock';
+import LoginModal from "./components/LoginModal";
+import Navbar from "./components/Navbar";
+import Hero from "./components/Hero";
+import CategoryFilter from "./components/CategoryFilter";
+import DishGrid from "./components/DishGrid";
+import HowItWorks from "./components/HowItWorks";
+import Testimonials from "./components/Testimonials";
+import CartDrawer from "./components/CartDrawer";
+import Footer from "./components/Footer";
+import Toast from "./components/Toast";
+import Dock from "./components/Dock";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
-//////////////////////////////////////////////////////////
-// FLOATING DOCK COMPONENT
-//////////////////////////////////////////////////////////
+function useFoodBackgroundMotion() {
+  useEffect(() => {
+    let lastScrollY = window.scrollY;
+    let offset = 0;
+    let frame = null;
+
+    const syncBackgroundMotion = () => {
+      const currentScrollY = window.scrollY;
+      const delta = currentScrollY - lastScrollY;
+
+      offset += delta * 0.18;
+      offset = Math.max(-180, Math.min(180, offset));
+
+      document.body.style.setProperty("--food-scroll-y", `${offset.toFixed(1)}px`);
+      lastScrollY = currentScrollY;
+      frame = null;
+    };
+
+    const handleScroll = () => {
+      if (frame !== null) return;
+      frame = window.requestAnimationFrame(syncBackgroundMotion);
+    };
+
+    document.body.style.setProperty("--food-scroll-y", "0px");
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => {
+      if (frame !== null) {
+        window.cancelAnimationFrame(frame);
+      }
+      window.removeEventListener("scroll", handleScroll);
+      document.body.style.setProperty("--food-scroll-y", "0px");
+    };
+  }, []);
+}
+
 function FloatingDock({ onLoginClick }) {
   const [visible, setVisible] = useState(true);
   const [lastScroll, setLastScroll] = useState(0);
 
-  // smooth show/hide animation on scroll
   useEffect(() => {
     let ticking = false;
 
@@ -49,23 +79,23 @@ function FloatingDock({ onLoginClick }) {
       });
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
   }, [lastScroll]);
 
   const items = [
     {
-      label: 'Home',
+      label: "Home",
       icon: <span>Home</span>,
-      onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' })
+      onClick: () => window.scrollTo({ top: 0, behavior: "smooth" })
     },
     {
-      label: 'Menu',
+      label: "Menu",
       icon: <span>Menu</span>,
-      onClick: () => document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' })
+      onClick: () => document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" })
     },
     {
-      label: 'Login',
+      label: "Login",
       icon: <span>Login</span>,
       onClick: onLoginClick
     }
@@ -74,42 +104,35 @@ function FloatingDock({ onLoginClick }) {
   return (
     <div
       style={{
-        position: 'fixed',
-        top: '72px',
-        left: '50%',
-        transform: visible ? 'translate(-50%, 0px)' : 'translate(-50%, -120px)',
+        position: "fixed",
+        top: "72px",
+        left: "50%",
+        transform: visible ? "translate(-50%, 0px)" : "translate(-50%, -120px)",
         opacity: visible ? 1 : 0,
-        transition: 'transform 0.45s cubic-bezier(.22,.61,.36,1), opacity 0.35s ease',
+        transition: "transform 0.45s cubic-bezier(.22,.61,.36,1), opacity 0.35s ease",
         zIndex: 9999,
-        pointerEvents: 'none'
+        pointerEvents: "none"
       }}
     >
-      <div style={{ pointerEvents: 'auto' }}>
+      <div style={{ pointerEvents: "auto" }}>
         <Dock items={items} magnification={60} baseItemSize={40} distance={140} panelHeight={64} />
       </div>
     </div>
   );
 }
 
-//////////////////////////////////////////////////////////
-// MAIN SITE
-//////////////////////////////////////////////////////////
 function MainSite() {
+  useFoodBackgroundMotion();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
-
   const [dishes, setDishes] = useState([]);
-  const [categories, setCategories] = useState(['All']);
-  const [activeCategory, setActiveCategory] = useState('All');
-
+  const [categories, setCategories] = useState(["All"]);
+  const [activeCategory, setActiveCategory] = useState("All");
   const [cart, setCart] = useState({});
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [toast, setToast] = useState({ open: false, type: "success", title: "", message: "" });
 
-  const [toast, setToast] = useState({ open: false, type: 'success', title: '', message: '' });
   const showToast = (type, title, message) => setToast({ open: true, type, title, message });
 
-  /////////////////////////////////////
-  // LOAD DISHES FROM API
-  /////////////////////////////////////
   const loadDishes = async () => {
     try {
       const res = await fetch(`${API_BASE}/api/dishes`);
@@ -124,7 +147,7 @@ function MainSite() {
     try {
       const res = await fetch(`${API_BASE}/api/dishes/categories`);
       const data = await res.json();
-      setCategories(Array.isArray(data) ? data : ['All']);
+      setCategories(Array.isArray(data) ? data : ["All"]);
     } catch {
       // ignore
     }
@@ -135,27 +158,21 @@ function MainSite() {
     loadCategories();
   }, []);
 
-  // auto refresh when tab focus returns (after admin added dish)
   useEffect(() => {
     const refresh = () => {
       loadDishes();
       loadCategories();
     };
-    window.addEventListener('focus', refresh);
-    return () => window.removeEventListener('focus', refresh);
+
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
   }, []);
 
-  /////////////////////////////////////
-  // FILTER DISHES
-  /////////////////////////////////////
   const filteredDishes = useMemo(() => {
-    if (activeCategory === 'All') return dishes;
+    if (activeCategory === "All") return dishes;
     return dishes.filter((d) => d.category === activeCategory);
   }, [dishes, activeCategory]);
 
-  /////////////////////////////////////
-  // CART LOGIC
-  /////////////////////////////////////
   const cartCount = useMemo(
     () => Object.values(cart).reduce((sum, item) => sum + item.quantity, 0),
     [cart]
@@ -163,7 +180,7 @@ function MainSite() {
 
   const handleAddToCart = (dish) => {
     setCart((prev) => {
-      const id = dish.id || dish._id; // backend sends id, but fallback safe
+      const id = dish.id || dish._id;
       const existing = prev[id];
       const quantity = existing ? existing.quantity + 1 : 1;
 
@@ -196,9 +213,14 @@ function MainSite() {
     });
   };
 
-  /////////////////////////////////////
-  // CHECKOUT
-  /////////////////////////////////////
+  const handleRemove = (dishId) => {
+    setCart((prev) => {
+      const copy = { ...prev };
+      delete copy[dishId];
+      return copy;
+    });
+  };
+
   const handleCheckout = async () => {
     const items = Object.values(cart).map((item) => ({
       id: item.id,
@@ -211,27 +233,25 @@ function MainSite() {
 
     try {
       const res = await fetch(`${API_BASE}/api/orders`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ items })
       });
 
       const data = await res.json();
 
-      if (!res.ok) return showToast('error', 'Checkout failed', data?.message || 'Try again');
+      if (!res.ok) {
+        return showToast("error", "Checkout failed", data?.message || "Try again");
+      }
 
-      showToast('success', 'Order placed', `Order ID ${data.orderId}`);
-
+      showToast("success", "Order placed", `Order ID ${data.orderId}`);
       setCart({});
       setIsCartOpen(false);
     } catch {
-      showToast('error', 'Network error', 'Try again');
+      showToast("error", "Network error", "Try again");
     }
   };
 
-  /////////////////////////////////////
-  // RENDER
-  /////////////////////////////////////
   return (
     <div className="app-shell">
       <Navbar
@@ -240,24 +260,36 @@ function MainSite() {
         onLoginClick={() => setLoginModalOpen(true)}
       />
 
-      {/* FLOATING DOCK */}
       <FloatingDock onLoginClick={() => setLoginModalOpen(true)} />
 
-      {/* LOGIN MODAL */}
       <LoginModal
         open={loginModalOpen}
         onClose={() => setLoginModalOpen(false)}
         onPartner={() => {
           setLoginModalOpen(false);
-          window.open('https://khanna-khazana-5.onrender.com', '_blank', 'noopener,noreferrer');
+          window.open("https://khanna-khazana-5.onrender.com", "_blank", "noopener,noreferrer");
         }}
       />
 
-      <main>
-        <Hero />
+      <main className="site-main">
+        <Hero
+          onOrderClick={() => {
+            const el = document.getElementById("menu");
+            if (el) el.scrollIntoView({ behavior: "smooth" });
+          }}
+        />
 
-        <section id="menu" className="section">
+        <section id="menu" className="section menu-section">
           <div className="container">
+            <div className="section-header section-header-left">
+              <p className="badge badge-glass">Live menu radar</p>
+              <h2 className="section-title">Fresh plates tuned to every craving</h2>
+              <p className="section-subtitle">
+                Hover through chef drops, regional comfort bowls, and street-food favourites
+                built to feel vivid, fast, and irresistible.
+              </p>
+            </div>
+
             <CategoryFilter
               categories={categories}
               activeCategory={activeCategory}
@@ -285,6 +317,7 @@ function MainSite() {
         onCheckout={handleCheckout}
         onIncrease={handleIncrease}
         onDecrease={handleDecrease}
+        onRemove={handleRemove}
       />
 
       <Footer />
@@ -300,9 +333,6 @@ function MainSite() {
   );
 }
 
-//////////////////////////////////////////////////////////
-// ROUTES
-//////////////////////////////////////////////////////////
 export default function App() {
   return (
     <Routes>

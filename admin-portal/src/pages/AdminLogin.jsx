@@ -1,16 +1,14 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Toast from "../components/Toast";
+import heroWordmark from "./image.png";
 
-const API_BASE =
-  process.env.REACT_APP_API_BASE || "https://khanna-khazana-3.onrender.com";
+const API_BASE = process.env.REACT_APP_API_BASE || "https://khanna-khazana-3.onrender.com";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
-
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-
   const [toast, setToast] = useState({
     open: false,
     type: "success",
@@ -18,8 +16,7 @@ export default function AdminLogin() {
     message: ""
   });
 
-  const showToast = (type, title, message) =>
-    setToast({ open: true, type, title, message });
+  const showToast = (type, title, message) => setToast({ open: true, type, title, message });
 
   const submit = async (e) => {
     e.preventDefault();
@@ -39,9 +36,7 @@ export default function AdminLogin() {
       }
 
       localStorage.setItem("admin_token", data.token);
-      showToast("success", "Logged in", "Welcome admin!");
-
-      // ✅ go to panel
+      showToast("success", "Logged in", "Welcome back to the control deck.");
       setTimeout(() => navigate("/panel"), 250);
     } catch (err) {
       console.error(err);
@@ -50,69 +45,74 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="container" style={{ padding: "2rem" }}>
-      <h2 style={{ marginBottom: "0.5rem" }}>Admin Login</h2>
-      <p style={{ color: "var(--text-muted)", marginTop: 0 }}>
-        Use your admin credentials.
-      </p>
+    <div className="admin-login-page">
+      <div className="admin-login-bg admin-login-bg-left" />
+      <div className="admin-login-bg admin-login-bg-right" />
 
-      <form onSubmit={submit} style={{ maxWidth: 420 }}>
-        <input
-          placeholder="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          style={{
-            width: "100%",
-            padding: 12,
-            borderRadius: 12,
-            border: "1px solid rgba(0,0,0,0.12)",
-            marginBottom: 10
-          }}
-        />
+      <div className="container admin-login-layout">
+        <section className="admin-login-copy">
+          <div className="admin-badge">Khanna Khazana Control Deck</div>
+          <img
+            src={heroWordmark}
+            alt="Khanna Khazana admin portal"
+            className="admin-login-hero-image"
+          />
+          <p>
+            A premium admin experience for managing dishes, categories, and storefront
+            operations with a bold food-tech visual system.
+          </p>
 
-        <input
-          placeholder="Password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={{
-            width: "100%",
-            padding: 12,
-            borderRadius: 12,
-            border: "1px solid rgba(0,0,0,0.12)",
-            marginBottom: 12
-          }}
-        />
+          <div className="admin-login-highlights">
+            <div className="admin-highlight-card">
+              <strong>Live menu editing</strong>
+              <span>Add new dishes and refresh the storefront instantly.</span>
+            </div>
+            <div className="admin-highlight-card">
+              <strong>Food-first visuals</strong>
+              <span>Warm gradients, glass panels, and food-inspired backgrounds.</span>
+            </div>
+          </div>
+        </section>
 
-        <button
-          className="btn btn-primary"
-          style={{ width: "100%", justifyContent: "center" }}
-        >
-          Login
-        </button>
+        <section className="admin-login-card">
+          <div className="admin-card-kicker">Admin Login</div>
+          <h2>Sign in to the panel</h2>
+          <p>Use your admin credentials to manage the Khanna Khazana experience.</p>
 
-        {/* ✅ Delivery Portal button */}
-        <button
-          type="button"
-          className="btn"
-          onClick={() =>
-            window.open("https://khanna-khazana-4.onrender.com", "_blank", "noopener,noreferrer")
-          }
-          style={{
-            width: "100%",
-            justifyContent: "center",
-            marginTop: 10,
-            background: "white",
-            border: "1px solid rgba(0,0,0,0.12)",
-            borderRadius: 12,
-            padding: "0.7rem 1rem",
-            fontWeight: 800,
-            cursor: "pointer"
-          }}
-        >
-          Go to Delivery Portal
-        </button>
-      </form>
+          <form onSubmit={submit} className="admin-form">
+            <label className="admin-field">
+              <span>Username</span>
+              <input
+                placeholder="Enter username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
+            </label>
+
+            <label className="admin-field">
+              <span>Password</span>
+              <input
+                placeholder="Enter password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </label>
+
+            <button className="btn btn-primary admin-button-full">Enter control deck</button>
+
+            <button
+              type="button"
+              className="btn admin-secondary-button"
+              onClick={() =>
+                window.open("https://khanna-khazana-4.onrender.com", "_blank", "noopener,noreferrer")
+              }
+            >
+              Open delivery portal
+            </button>
+          </form>
+        </section>
+      </div>
 
       <Toast
         open={toast.open}
