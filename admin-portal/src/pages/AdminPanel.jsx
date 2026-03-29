@@ -188,7 +188,8 @@ export default function AdminPanel() {
           <div>
             <div className="admin-badge">Khanna Khazana Admin Panel</div>
             <h1>Food operations control deck</h1>
-            <p>Add dishes, manage categories, and curate the storefront with a polished visual flow.</p>
+            <p>Add dishes and manage them</p>
+            
           </div>
 
           <div className="admin-panel-actions">
