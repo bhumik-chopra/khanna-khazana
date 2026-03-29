@@ -11,9 +11,7 @@ const Footer = () => {
           </div>
         </div>
         <div className="site-footer-tags">
-          <span>Food design system</span>
-          <span>Orange / White / Green</span>
-          <span>Interactive hover UI</span>
+     
         </div>
       </div>
     </footer>
