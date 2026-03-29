@@ -13,6 +13,19 @@ function getClerkErrorMessage(error, fallback) {
   return error?.errors?.[0]?.longMessage || error?.errors?.[0]?.message || fallback;
 }
 
+async function finalizeAuth(resource, setActive) {
+  if (typeof resource?.finalize === "function") {
+    await resource.finalize({
+      navigate: () => {}
+    });
+    return;
+  }
+
+  if (resource?.createdSessionId && setActive) {
+    await setActive({ session: resource.createdSessionId });
+  }
+}
+
 export default function LoginModal({ open, onClose, onPartner }) {
   const [mode, setMode] = useState("chooser");
   const [authMode, setAuthMode] = useState("sign-in");
@@ -58,25 +71,34 @@ export default function LoginModal({ open, onClose, onPartner }) {
         }
 
         await signUp.create({ emailAddress: email });
-        await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+
+        if (signUp.verifications?.sendEmailCode) {
+          await signUp.verifications.sendEmailCode();
+        } else {
+          await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+        }
       } else {
         if (!signInLoaded || !signIn) {
           throw new Error("Clerk is still loading.");
         }
 
-        const signInAttempt = await signIn.create({ identifier: email });
-        const emailFactor = signInAttempt.supportedFirstFactors?.find(
-          (factor) => factor.strategy === "email_code"
-        );
+        if (signIn.emailCode?.sendCode) {
+          await signIn.emailCode.sendCode({ emailAddress: email });
+        } else {
+          const signInAttempt = await signIn.create({ identifier: email });
+          const emailFactor = signInAttempt.supportedFirstFactors?.find(
+            (factor) => factor.strategy === "email_code"
+          );
 
-        if (!emailFactor || !("emailAddressId" in emailFactor)) {
-          throw new Error("Email verification is not available for this account.");
+          if (!emailFactor || !("emailAddressId" in emailFactor)) {
+            throw new Error("Email verification is not available for this account.");
+          }
+
+          await signIn.prepareFirstFactor({
+            strategy: "email_code",
+            emailAddressId: emailFactor.emailAddressId
+          });
         }
-
-        await signIn.prepareFirstFactor({
-          strategy: "email_code",
-          emailAddressId: emailFactor.emailAddressId
-        });
       }
 
       setStep("verify");
@@ -105,12 +127,22 @@ export default function LoginModal({ open, onClose, onPartner }) {
           throw new Error("Clerk is still loading.");
         }
 
-        const result = await signUp.attemptEmailAddressVerification({ code });
+        if (signUp.verifications?.verifyEmailCode) {
+          await signUp.verifications.verifyEmailCode({ code });
 
-        if (result.status === "complete" && result.createdSessionId) {
-          await setActiveSignUp?.({ session: result.createdSessionId });
-          setInfoMessage("Your foodie account is ready.");
-          return;
+          if (signUp.status === "complete") {
+            await finalizeAuth(signUp, setActiveSignUp);
+            setInfoMessage("Your foodie account is ready.");
+            return;
+          }
+        } else {
+          const result = await signUp.attemptEmailAddressVerification({ code });
+
+          if (result.status === "complete") {
+            await finalizeAuth(result, setActiveSignUp);
+            setInfoMessage("Your foodie account is ready.");
+            return;
+          }
         }
 
         throw new Error("Verification could not be completed yet.");
@@ -120,15 +152,25 @@ export default function LoginModal({ open, onClose, onPartner }) {
         throw new Error("Clerk is still loading.");
       }
 
-      const result = await signIn.attemptFirstFactor({
-        strategy: "email_code",
-        code
-      });
+      if (signIn.emailCode?.verifyCode) {
+        await signIn.emailCode.verifyCode({ code });
 
-      if (result.status === "complete" && result.createdSessionId) {
-        await setActiveSignIn?.({ session: result.createdSessionId });
-        setInfoMessage("Signed in successfully.");
-        return;
+        if (signIn.status === "complete") {
+          await finalizeAuth(signIn, setActiveSignIn);
+          setInfoMessage("Signed in successfully.");
+          return;
+        }
+      } else {
+        const result = await signIn.attemptFirstFactor({
+          strategy: "email_code",
+          code
+        });
+
+        if (result.status === "complete") {
+          await finalizeAuth(result, setActiveSignIn);
+          setInfoMessage("Signed in successfully.");
+          return;
+        }
       }
 
       throw new Error("Verification could not be completed yet.");
@@ -154,25 +196,33 @@ export default function LoginModal({ open, onClose, onPartner }) {
           throw new Error("Clerk is still loading.");
         }
 
-        await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+        if (signUp.verifications?.sendEmailCode) {
+          await signUp.verifications.sendEmailCode();
+        } else {
+          await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+        }
       } else {
         if (!signInLoaded || !signIn) {
           throw new Error("Clerk is still loading.");
         }
 
-        const signInAttempt = await signIn.create({ identifier: emailAddress.trim() });
-        const emailFactor = signInAttempt.supportedFirstFactors?.find(
-          (factor) => factor.strategy === "email_code"
-        );
+        if (signIn.emailCode?.sendCode) {
+          await signIn.emailCode.sendCode({ emailAddress: emailAddress.trim() });
+        } else {
+          const signInAttempt = await signIn.create({ identifier: emailAddress.trim() });
+          const emailFactor = signInAttempt.supportedFirstFactors?.find(
+            (factor) => factor.strategy === "email_code"
+          );
 
-        if (!emailFactor || !("emailAddressId" in emailFactor)) {
-          throw new Error("Email verification is not available for this account.");
+          if (!emailFactor || !("emailAddressId" in emailFactor)) {
+            throw new Error("Email verification is not available for this account.");
+          }
+
+          await signIn.prepareFirstFactor({
+            strategy: "email_code",
+            emailAddressId: emailFactor.emailAddressId
+          });
         }
-
-        await signIn.prepareFirstFactor({
-          strategy: "email_code",
-          emailAddressId: emailFactor.emailAddressId
-        });
       }
 
       setInfoMessage(`A new verification code was sent to ${emailAddress.trim()}. Use the latest one.`);
