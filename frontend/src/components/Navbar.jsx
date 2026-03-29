@@ -1,8 +1,13 @@
 import React from "react";
+import { SignedIn, SignedOut, UserButton } from "@clerk/clerk-react";
 import { Link } from "react-router-dom";
 import logo1 from "./logo1.jpg";
 
-const Navbar = ({ onCartClick, cartCount = 0 }) => {
+const Navbar = ({ onCartClick, onLoginClick, cartCount = 0 }) => {
+  const clerkEnabled = Boolean(
+    process.env.REACT_APP_CLERK_PUBLISHABLE_KEY || process.env.REACT_APP_CLERKPUBLICKEY
+  );
+
   const scrollTo = (id) => {
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: "smooth" });
@@ -28,7 +33,6 @@ const Navbar = ({ onCartClick, cartCount = 0 }) => {
           padding: "0.85rem 1.25rem"
         }}
       >
-        {/* ✅ Clickable logo + title -> goes to frontend home ("/") */}
         <Link
           to="/"
           style={{
@@ -63,7 +67,6 @@ const Navbar = ({ onCartClick, cartCount = 0 }) => {
           </div>
         </Link>
 
-        {/* Right buttons */}
         <div style={{ display: "flex", gap: "0.7rem", alignItems: "center" }}>
           <button
             className="btn"
@@ -78,7 +81,51 @@ const Navbar = ({ onCartClick, cartCount = 0 }) => {
             How it works
           </button>
 
-          {/* ✅ Cart button with badge count */}
+          {clerkEnabled ? (
+            <>
+              <SignedOut>
+                <button
+                  className="btn"
+                  style={{
+                    background: "rgba(255,255,255,0.18)",
+                    color: "var(--white)",
+                    paddingInline: "1.0rem",
+                    border: "1px solid rgba(255,255,255,0.25)"
+                  }}
+                  onClick={onLoginClick}
+                >
+                  Sign In
+                </button>
+              </SignedOut>
+
+              <SignedIn>
+                <div
+                  style={{
+                    background: "rgba(255,255,255,0.14)",
+                    border: "1px solid rgba(255,255,255,0.22)",
+                    borderRadius: 999,
+                    padding: "0.18rem 0.22rem"
+                  }}
+                >
+                  <UserButton afterSignOutUrl="/" />
+                </div>
+              </SignedIn>
+            </>
+          ) : (
+            <button
+              className="btn"
+              style={{
+                background: "rgba(255,255,255,0.18)",
+                color: "var(--white)",
+                paddingInline: "1.0rem",
+                border: "1px solid rgba(255,255,255,0.25)"
+              }}
+              onClick={onLoginClick}
+            >
+              Sign In
+            </button>
+          )}
+
           <button
             className="btn"
             style={{
