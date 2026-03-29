@@ -6,8 +6,12 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
+const defaultClerkPublishableKey =
+  'pk_test_cHJvYmFibGUtYnVubnktODEuY2xlcmsuYWNjb3VudHMuZGV2JA';
 const clerkPublishableKey =
-  process.env.REACT_APP_CLERK_PUBLISHABLE_KEY || process.env.REACT_APP_CLERKPUBLICKEY;
+  process.env.REACT_APP_CLERK_PUBLISHABLE_KEY ||
+  process.env.REACT_APP_CLERKPUBLICKEY ||
+  defaultClerkPublishableKey;
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

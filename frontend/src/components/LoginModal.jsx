@@ -2,10 +2,15 @@ import React, { useEffect, useState } from "react";
 import { SignIn, SignedIn, SignedOut, SignOutButton, UserButton } from "@clerk/clerk-react";
 import TargetCursor from "./TargetCursor";
 
+const defaultClerkPublishableKey =
+  "pk_test_cHJvYmFibGUtYnVubnktODEuY2xlcmsuYWNjb3VudHMuZGV2JA";
+
 export default function LoginModal({ open, onClose, onPartner }) {
   const [mode, setMode] = useState("chooser");
   const clerkEnabled = Boolean(
-    process.env.REACT_APP_CLERK_PUBLISHABLE_KEY || process.env.REACT_APP_CLERKPUBLICKEY
+    process.env.REACT_APP_CLERK_PUBLISHABLE_KEY ||
+      process.env.REACT_APP_CLERKPUBLICKEY ||
+      defaultClerkPublishableKey
   );
 
   useEffect(() => {
