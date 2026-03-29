@@ -2,16 +2,8 @@ import React, { useEffect, useState } from "react";
 import { SignIn, SignedIn, SignedOut, SignOutButton, UserButton } from "@clerk/clerk-react";
 import TargetCursor from "./TargetCursor";
 
-const defaultClerkPublishableKey =
-  "pk_test_cHJvYmFibGUtYnVubnktODEuY2xlcmsuYWNjb3VudHMuZGV2JA";
-
 export default function LoginModal({ open, onClose, onPartner }) {
   const [mode, setMode] = useState("chooser");
-  const clerkEnabled = Boolean(
-    process.env.REACT_APP_CLERK_PUBLISHABLE_KEY ||
-      process.env.REACT_APP_CLERKPUBLICKEY ||
-      defaultClerkPublishableKey
-  );
 
   useEffect(() => {
     if (open) {
@@ -89,7 +81,7 @@ export default function LoginModal({ open, onClose, onPartner }) {
               <p className="kk-auth-copy">
                 {mode === "chooser"
                   ? "Choose how you want to continue with Khanna Khazana."
-                  : "Sign in or create your foodie account right here in the modal."}
+                  : "Sign in or create your foodie account right here without leaving the page."}
               </p>
             </div>
 
@@ -141,58 +133,47 @@ export default function LoginModal({ open, onClose, onPartner }) {
                     </button>
                   </div>
 
-                  {!clerkEnabled ? (
-                    <div className="kk-auth-config">
-                      Add `REACT_APP_CLERK_PUBLISHABLE_KEY` in `frontend/.env.local` to enable
-                      Clerk authentication in this modal.
-                    </div>
-                  ) : (
-                    <>
-                      <SignedOut>
-                        <SignIn
-                          routing="virtual"
-                          withSignUp={true}
-                          fallbackRedirectUrl="/"
-                          appearance={clerkAppearance}
-                        />
-                      </SignedOut>
+                  <div className="kk-auth-pane">
+                    <div className="kk-auth-pane-glow" />
+                    <SignedOut>
+                      <SignIn withSignUp={true} fallbackRedirectUrl="/" appearance={clerkAppearance} />
+                    </SignedOut>
 
-                      <SignedIn>
-                        <div className="kk-auth-success">
-                          <div className="kk-auth-success-icon">OK</div>
-                          <h3>You're signed in</h3>
-                          <p>Your foodie account is ready. You can continue browsing now.</p>
-                          <div className="kk-auth-success-actions">
-                            <button
-                              type="button"
-                              className="btn btn-primary login-modal-target"
-                              onClick={onClose}
-                              style={{ justifyContent: "center" }}
-                            >
-                              Continue shopping
-                            </button>
-                            <div className="kk-auth-user-row">
-                              <UserButton afterSignOutUrl="/" />
-                              <SignOutButton redirectUrl="/">
-                                <button
-                                  type="button"
-                                  className="btn login-modal-target"
-                                  style={{
-                                    background: "white",
-                                    border: "1px solid rgba(0,0,0,0.12)",
-                                    borderRadius: 14,
-                                    fontWeight: 800
-                                  }}
-                                >
-                                  Sign out
-                                </button>
-                              </SignOutButton>
-                            </div>
+                    <SignedIn>
+                      <div className="kk-auth-success">
+                        <div className="kk-auth-success-icon">✓</div>
+                        <h3>You're signed in</h3>
+                        <p>Your foodie account is ready. You can continue browsing now.</p>
+                        <div className="kk-auth-success-actions">
+                          <button
+                            type="button"
+                            className="btn btn-primary login-modal-target"
+                            onClick={onClose}
+                            style={{ justifyContent: "center" }}
+                          >
+                            Continue shopping
+                          </button>
+                          <div className="kk-auth-user-row">
+                            <UserButton afterSignOutUrl="/" />
+                            <SignOutButton redirectUrl="/">
+                              <button
+                                type="button"
+                                className="btn login-modal-target"
+                                style={{
+                                  background: "white",
+                                  border: "1px solid rgba(0,0,0,0.12)",
+                                  borderRadius: 14,
+                                  fontWeight: 800
+                                }}
+                              >
+                                Sign out
+                              </button>
+                            </SignOutButton>
                           </div>
                         </div>
-                      </SignedIn>
-                    </>
-                  )}
+                      </div>
+                    </SignedIn>
+                  </div>
                 </>
               )}
             </div>
