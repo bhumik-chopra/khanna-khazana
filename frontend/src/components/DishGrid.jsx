@@ -48,18 +48,17 @@ const DishCard = ({ dish, qty, onAddToCart, onIncrease, onDecrease }) => {
     <StarBorder as="div" radius={22} className="dish-grid-border" color="orange" speed="5s">
       <motion.article
         className="dish-card-scene"
-        whileHover={{ y: -8, scale: 1.015 }}
-        transition={{ duration: 0.24, ease: "easeOut" }}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.97 }}
       >
         <motion.div
           className="dish-card-shell"
           onClick={() => setFlipped((current) => !current)}
-          whileTap={{ scale: 0.99 }}
         >
           <motion.div
             className="dish-card-inner"
             animate={{ rotateY: flipped ? 180 : 0 }}
-            transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.9, ease: "easeInOut" }}
           >
             <div className="dish-card-face dish-card-front">
               <div className="dish-card-glow" />

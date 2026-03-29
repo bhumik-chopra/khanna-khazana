@@ -574,11 +574,6 @@ select {
 
 .dish-grid-border {
   height: 100%;
-  transition: transform 0.24s ease;
-}
-
-.dish-grid-border:hover {
-  transform: translateY(-6px);
 }
 
 .dish-card-scene {
@@ -665,11 +660,6 @@ select {
   width: 100%;
   height: 210px;
   object-fit: cover;
-  transition: transform 0.4s ease;
-}
-
-.dish-card-shell:hover .dish-image {
-  transform: scale(1.08);
 }
 
 .dish-badge {
