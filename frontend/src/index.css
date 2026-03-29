@@ -175,6 +175,10 @@ button {
   width: min(100%, 760px);
 }
 
+.kk-auth-dialog-auth {
+  width: min(100%, 580px);
+}
+
 .kk-auth-card {
   position: relative;
   background:
@@ -244,6 +248,10 @@ button {
   overflow: hidden;
 }
 
+.kk-auth-pane-custom {
+  padding: 1.35rem;
+}
+
 .kk-auth-pane-glow {
   position: absolute;
   inset: 0;
@@ -251,78 +259,6 @@ button {
   background:
     radial-gradient(circle at top left, rgba(255, 122, 26, 0.12), transparent 32%),
     radial-gradient(circle at top right, rgba(0, 140, 74, 0.12), transparent 34%);
-}
-
-.kk-clerk-root,
-.kk-clerk-card-box {
-  width: 100%;
-}
-
-.kk-clerk-card {
-  position: relative;
-  padding: 0;
-  background: transparent;
-  box-shadow: none;
-  border: none;
-}
-
-.kk-clerk-title {
-  font-size: 1.45rem;
-  font-weight: 800;
-  color: var(--text-dark);
-}
-
-.kk-clerk-subtitle,
-.kk-clerk-footer-text,
-.kk-clerk-divider-text {
-  color: var(--text-muted);
-}
-
-.kk-clerk-social-button {
-  min-height: 54px;
-  border-radius: 16px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  background: #fff;
-  box-shadow: var(--shadow-soft);
-}
-
-.kk-clerk-social-button-text,
-.kk-clerk-field-label {
-  color: var(--text-dark);
-  font-weight: 700;
-}
-
-.kk-clerk-divider-row {
-  margin: 1.25rem 0;
-}
-
-.kk-clerk-divider-line {
-  background: rgba(0, 0, 0, 0.08);
-}
-
-.kk-clerk-field-input,
-.kk-clerk-otp-input {
-  min-height: 54px;
-  border-radius: 16px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  background: #fff;
-  box-shadow: none;
-}
-
-.kk-clerk-primary-button {
-  min-height: 56px;
-  border-radius: 16px;
-  background: linear-gradient(90deg, #ff7a1a 0%, #008c4a 100%);
-  box-shadow: 0 14px 28px rgba(255, 122, 26, 0.24);
-}
-
-.kk-clerk-footer-link {
-  color: var(--orange);
-  font-weight: 700;
-}
-
-.kk-clerk-alert {
-  border-radius: 16px;
 }
 
 .kk-auth-secondary {
@@ -355,6 +291,115 @@ button {
   padding: 0.45rem 0.9rem;
   font-weight: 700;
   cursor: pointer;
+}
+
+.kk-auth-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-bottom: 1.15rem;
+}
+
+.kk-auth-tab {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text-dark);
+  border-radius: 16px;
+  padding: 0.85rem 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.kk-auth-tab.is-active {
+  border-color: rgba(255, 122, 26, 0.3);
+  box-shadow: 0 12px 24px rgba(255, 122, 26, 0.12);
+  background: linear-gradient(135deg, rgba(255, 122, 26, 0.12), rgba(0, 140, 74, 0.1));
+}
+
+.kk-auth-custom-copy h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1.5rem;
+}
+
+.kk-auth-custom-copy p {
+  margin: 0 0 1.1rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.kk-auth-label {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.kk-auth-input {
+  width: 100%;
+  min-height: 56px;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: #fff;
+  color: var(--text-dark);
+  padding: 0 1rem;
+  font: inherit;
+  margin-bottom: 0.95rem;
+}
+
+.kk-auth-input:focus {
+  outline: none;
+  border-color: rgba(255, 122, 26, 0.45);
+  box-shadow: 0 0 0 4px rgba(255, 122, 26, 0.12);
+}
+
+.kk-auth-custom-button {
+  width: 100%;
+  min-height: 56px;
+  border: none;
+  border-radius: 16px;
+  background: linear-gradient(90deg, #ff7a1a 0%, #008c4a 100%);
+  color: white;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 16px 28px rgba(255, 122, 26, 0.22);
+}
+
+.kk-auth-custom-button:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.kk-auth-link-button {
+  margin-top: 0.85rem;
+  border: none;
+  background: transparent;
+  color: var(--orange);
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+
+.kk-auth-error,
+.kk-auth-info {
+  border-radius: 14px;
+  padding: 0.85rem 0.95rem;
+  margin-bottom: 0.95rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.kk-auth-error {
+  background: rgba(255, 59, 48, 0.08);
+  color: #c03228;
+  border: 1px solid rgba(255, 59, 48, 0.15);
+}
+
+.kk-auth-info {
+  background: rgba(0, 140, 74, 0.08);
+  color: var(--green);
+  border: 1px solid rgba(0, 140, 74, 0.16);
 }
 
 .kk-auth-success {

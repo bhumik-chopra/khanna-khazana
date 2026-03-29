@@ -1,49 +1,141 @@
 import React, { useEffect, useState } from "react";
-import { SignIn, SignedIn, SignedOut, SignOutButton, UserButton } from "@clerk/clerk-react";
+import {
+  SignOutButton,
+  SignedIn,
+  SignedOut,
+  UserButton,
+  useSignIn,
+  useSignUp
+} from "@clerk/clerk-react";
 import TargetCursor from "./TargetCursor";
+
+function getClerkErrorMessage(error, fallback) {
+  return error?.errors?.[0]?.longMessage || error?.errors?.[0]?.message || fallback;
+}
 
 export default function LoginModal({ open, onClose, onPartner }) {
   const [mode, setMode] = useState("chooser");
+  const [authMode, setAuthMode] = useState("sign-in");
+  const [emailAddress, setEmailAddress] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [step, setStep] = useState("collect");
+  const [busy, setBusy] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [infoMessage, setInfoMessage] = useState("");
+
+  const { isLoaded: signInLoaded, signIn, setActive: setActiveSignIn } = useSignIn();
+  const { isLoaded: signUpLoaded, signUp, setActive: setActiveSignUp } = useSignUp();
 
   useEffect(() => {
     if (open) {
       setMode("chooser");
+      setAuthMode("sign-in");
+      setEmailAddress("");
+      setVerificationCode("");
+      setStep("collect");
+      setBusy(false);
+      setErrorMessage("");
+      setInfoMessage("");
     }
   }, [open]);
 
-  const clerkAppearance = {
-    variables: {
-      colorPrimary: "#ff7a1a",
-      colorText: "#1f1f1f",
-      colorTextSecondary: "#6d6d6d",
-      colorBackground: "transparent",
-      colorInputBackground: "#ffffff",
-      colorInputText: "#1f1f1f",
-      colorInputPlaceholder: "#8b8b8b",
-      colorNeutral: "#f7efe7",
-      borderRadius: "16px",
-      fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-    },
-    elements: {
-      rootBox: "kk-clerk-root",
-      cardBox: "kk-clerk-card-box",
-      card: "kk-clerk-card",
-      headerTitle: "kk-clerk-title",
-      headerSubtitle: "kk-clerk-subtitle",
-      socialButtonsBlockButton: "kk-clerk-social-button",
-      socialButtonsBlockButtonText: "kk-clerk-social-button-text",
-      dividerRow: "kk-clerk-divider-row",
-      dividerLine: "kk-clerk-divider-line",
-      dividerText: "kk-clerk-divider-text",
-      formFieldLabel: "kk-clerk-field-label",
-      formFieldInput: "kk-clerk-field-input",
-      formButtonPrimary: "kk-clerk-primary-button",
-      footerActionText: "kk-clerk-footer-text",
-      footerActionLink: "kk-clerk-footer-link",
-      formFieldAction: "kk-clerk-footer-link",
-      formResendCodeLink: "kk-clerk-footer-link",
-      otpCodeFieldInput: "kk-clerk-otp-input",
-      alert: "kk-clerk-alert"
+  const startEmailFlow = async () => {
+    const email = emailAddress.trim();
+
+    if (!email) {
+      setErrorMessage("Please enter your email address.");
+      return;
+    }
+
+    setBusy(true);
+    setErrorMessage("");
+    setInfoMessage("");
+
+    try {
+      if (authMode === "sign-up") {
+        if (!signUpLoaded || !signUp) {
+          throw new Error("Clerk is still loading.");
+        }
+
+        await signUp.create({ emailAddress: email });
+        await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+      } else {
+        if (!signInLoaded || !signIn) {
+          throw new Error("Clerk is still loading.");
+        }
+
+        const signInAttempt = await signIn.create({ identifier: email });
+        const emailFactor = signInAttempt.supportedFirstFactors?.find(
+          (factor) => factor.strategy === "email_code"
+        );
+
+        if (!emailFactor || !("emailAddressId" in emailFactor)) {
+          throw new Error("Email verification is not available for this account.");
+        }
+
+        await signIn.prepareFirstFactor({
+          strategy: "email_code",
+          emailAddressId: emailFactor.emailAddressId
+        });
+      }
+
+      setStep("verify");
+      setInfoMessage(`We sent a verification code to ${email}.`);
+    } catch (error) {
+      setErrorMessage(getClerkErrorMessage(error, "We couldn't start email verification."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const verifyEmailCode = async () => {
+    const code = verificationCode.trim();
+
+    if (!code) {
+      setErrorMessage("Please enter the verification code sent to your email.");
+      return;
+    }
+
+    setBusy(true);
+    setErrorMessage("");
+
+    try {
+      if (authMode === "sign-up") {
+        if (!signUpLoaded || !signUp) {
+          throw new Error("Clerk is still loading.");
+        }
+
+        const result = await signUp.attemptEmailAddressVerification({ code });
+
+        if (result.status === "complete" && result.createdSessionId) {
+          await setActiveSignUp?.({ session: result.createdSessionId });
+          setInfoMessage("Your foodie account is ready.");
+          return;
+        }
+
+        throw new Error("Verification could not be completed yet.");
+      }
+
+      if (!signInLoaded || !signIn) {
+        throw new Error("Clerk is still loading.");
+      }
+
+      const result = await signIn.attemptFirstFactor({
+        strategy: "email_code",
+        code
+      });
+
+      if (result.status === "complete" && result.createdSessionId) {
+        await setActiveSignIn?.({ session: result.createdSessionId });
+        setInfoMessage("Signed in successfully.");
+        return;
+      }
+
+      throw new Error("Verification could not be completed yet.");
+    } catch (error) {
+      setErrorMessage(getClerkErrorMessage(error, "The verification code is invalid."));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -52,7 +144,7 @@ export default function LoginModal({ open, onClose, onPartner }) {
   return (
     <>
       <TargetCursor
-        targetSelector=".login-modal-target, .kk-clerk-social-button, .kk-clerk-primary-button"
+        targetSelector=".login-modal-target, .kk-auth-custom-button, .kk-auth-tab"
         hideDefaultCursor={true}
         spinDuration={2}
         hoverDuration={0.2}
@@ -62,7 +154,7 @@ export default function LoginModal({ open, onClose, onPartner }) {
       <div className="kk-auth-backdrop" onClick={onClose} />
 
       <div className="kk-auth-modal" tabIndex="-1" role="dialog" aria-modal="true">
-        <div className="kk-auth-dialog" role="document">
+        <div className={mode === "chooser" ? "kk-auth-dialog" : "kk-auth-dialog kk-auth-dialog-auth"} role="document">
           <div className="kk-auth-card" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
@@ -76,12 +168,12 @@ export default function LoginModal({ open, onClose, onPartner }) {
             <div className="kk-auth-header">
               <div className="kk-auth-badge">Khanna Khazana</div>
               <h2 className="kk-auth-heading">
-                {mode === "chooser" ? "Login" : "Foodie Sign In"}
+                {mode === "chooser" ? "Login" : "Foodie Account"}
               </h2>
               <p className="kk-auth-copy">
                 {mode === "chooser"
                   ? "Choose how you want to continue with Khanna Khazana."
-                  : "Sign in or create your foodie account right here without leaving the page."}
+                  : "Use your email address and verify with a one-time code."}
               </p>
             </div>
 
@@ -133,47 +225,153 @@ export default function LoginModal({ open, onClose, onPartner }) {
                     </button>
                   </div>
 
-                  <div className="kk-auth-pane">
-                    <div className="kk-auth-pane-glow" />
-                    <SignedOut>
-                      <SignIn withSignUp={true} fallbackRedirectUrl="/" appearance={clerkAppearance} />
-                    </SignedOut>
+                  <SignedOut>
+                    <div className="kk-auth-pane kk-auth-pane-custom">
+                      <div className="kk-auth-pane-glow" />
 
-                    <SignedIn>
-                      <div className="kk-auth-success">
-                        <div className="kk-auth-success-icon">✓</div>
-                        <h3>You're signed in</h3>
-                        <p>Your foodie account is ready. You can continue browsing now.</p>
-                        <div className="kk-auth-success-actions">
-                          <button
-                            type="button"
-                            className="btn btn-primary login-modal-target"
-                            onClick={onClose}
-                            style={{ justifyContent: "center" }}
-                          >
-                            Continue shopping
-                          </button>
-                          <div className="kk-auth-user-row">
-                            <UserButton afterSignOutUrl="/" />
-                            <SignOutButton redirectUrl="/">
-                              <button
-                                type="button"
-                                className="btn login-modal-target"
-                                style={{
-                                  background: "white",
-                                  border: "1px solid rgba(0,0,0,0.12)",
-                                  borderRadius: 14,
-                                  fontWeight: 800
-                                }}
-                              >
-                                Sign out
-                              </button>
-                            </SignOutButton>
-                          </div>
+                      <div className="kk-auth-tabs">
+                        <button
+                          type="button"
+                          className={`kk-auth-tab ${authMode === "sign-in" ? "is-active" : ""}`}
+                          onClick={() => {
+                            setAuthMode("sign-in");
+                            setStep("collect");
+                            setVerificationCode("");
+                            setErrorMessage("");
+                            setInfoMessage("");
+                          }}
+                        >
+                          Sign In
+                        </button>
+                        <button
+                          type="button"
+                          className={`kk-auth-tab ${authMode === "sign-up" ? "is-active" : ""}`}
+                          onClick={() => {
+                            setAuthMode("sign-up");
+                            setStep("collect");
+                            setVerificationCode("");
+                            setErrorMessage("");
+                            setInfoMessage("");
+                          }}
+                        >
+                          Sign Up
+                        </button>
+                      </div>
+
+                      <div className="kk-auth-custom-copy">
+                        <h3>
+                          {step === "collect"
+                            ? authMode === "sign-in"
+                              ? "Sign in with email"
+                              : "Create your foodie account"
+                            : "Verify your email"}
+                        </h3>
+                        <p>
+                          {step === "collect"
+                            ? "No phone login. We only use your email and a verification code."
+                            : "Enter the code we sent to your email address to continue."}
+                        </p>
+                      </div>
+
+                      {step === "collect" ? (
+                        <>
+                          <label className="kk-auth-label" htmlFor="foodie-email">
+                            Email address
+                          </label>
+                          <input
+                            id="foodie-email"
+                            className="kk-auth-input"
+                            type="email"
+                            placeholder="Enter your email address"
+                            value={emailAddress}
+                            onChange={(e) => setEmailAddress(e.target.value)}
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <label className="kk-auth-label" htmlFor="foodie-code">
+                            Verification code
+                          </label>
+                          <input
+                            id="foodie-code"
+                            className="kk-auth-input"
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="Enter the code from your email"
+                            value={verificationCode}
+                            onChange={(e) => setVerificationCode(e.target.value)}
+                          />
+                        </>
+                      )}
+
+                      {errorMessage ? <div className="kk-auth-error">{errorMessage}</div> : null}
+                      {infoMessage ? <div className="kk-auth-info">{infoMessage}</div> : null}
+
+                      <button
+                        type="button"
+                        className="kk-auth-custom-button login-modal-target"
+                        onClick={step === "collect" ? startEmailFlow : verifyEmailCode}
+                        disabled={busy}
+                      >
+                        {busy
+                          ? "Please wait..."
+                          : step === "collect"
+                            ? authMode === "sign-in"
+                              ? "Send sign-in code"
+                              : "Send sign-up code"
+                            : "Verify and continue"}
+                      </button>
+
+                      {step === "verify" && (
+                        <button
+                          type="button"
+                          className="kk-auth-link-button login-modal-target"
+                          onClick={() => {
+                            setStep("collect");
+                            setVerificationCode("");
+                            setErrorMessage("");
+                          }}
+                        >
+                          Change email address
+                        </button>
+                      )}
+                    </div>
+                  </SignedOut>
+
+                  <SignedIn>
+                    <div className="kk-auth-success">
+                      <div className="kk-auth-success-icon">OK</div>
+                      <h3>You're signed in</h3>
+                      <p>Your foodie account is ready. You can continue browsing now.</p>
+                      <div className="kk-auth-success-actions">
+                        <button
+                          type="button"
+                          className="btn btn-primary login-modal-target"
+                          onClick={onClose}
+                          style={{ justifyContent: "center" }}
+                        >
+                          Continue shopping
+                        </button>
+                        <div className="kk-auth-user-row">
+                          <UserButton afterSignOutUrl="/" />
+                          <SignOutButton redirectUrl="/">
+                            <button
+                              type="button"
+                              className="btn login-modal-target"
+                              style={{
+                                background: "white",
+                                border: "1px solid rgba(0,0,0,0.12)",
+                                borderRadius: 14,
+                                fontWeight: 800
+                              }}
+                            >
+                              Sign out
+                            </button>
+                          </SignOutButton>
                         </div>
                       </div>
-                    </SignedIn>
-                  </div>
+                    </div>
+                  </SignedIn>
                 </>
               )}
             </div>
