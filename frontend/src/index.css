@@ -95,6 +95,7 @@ select {
 
 .site-main {
   position: relative;
+  padding-top: 6.6rem;
 }
 
 .container {
@@ -212,8 +213,10 @@ select {
 }
 
 .site-header {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  width: 100%;
   z-index: 20;
   padding: 0.9rem 0 0;
 }
