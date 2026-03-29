@@ -1,6 +1,6 @@
 import './App.css';
 import React, { useMemo, useState, useEffect } from 'react';
-import { Routes, Route, useNavigate } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 
 import LoginModal from './components/LoginModal';
 
@@ -15,9 +15,6 @@ import Footer from './components/Footer';
 import Toast from './components/Toast';
 
 import Dock from './components/Dock';
-
-import AdminLogin from './pages/AdminLogin';
-import AdminPanel from './pages/AdminPanel';
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
@@ -311,18 +308,9 @@ function MainSite() {
 // ROUTES
 //////////////////////////////////////////////////////////
 export default function App() {
-  const navigate = useNavigate();
-
   return (
     <Routes>
       <Route path="/" element={<MainSite />} />
-
-      <Route
-        path="/admin/login"
-        element={<AdminLogin onSuccess={() => navigate('/admin/panel')} />}
-      />
-
-      <Route path="/admin/panel" element={<AdminPanel />} />
     </Routes>
   );
 }
