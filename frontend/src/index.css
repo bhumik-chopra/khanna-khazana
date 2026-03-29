@@ -167,16 +167,16 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1.5rem;
+  padding: 1rem;
   z-index: 9999;
 }
 
 .kk-auth-dialog {
-  width: min(100%, 760px);
+  width: min(100%, 680px);
 }
 
 .kk-auth-dialog-auth {
-  width: min(100%, 580px);
+  width: min(100%, 470px);
 }
 
 .kk-auth-card {
@@ -185,18 +185,20 @@ button {
     radial-gradient(circle at top right, rgba(0, 140, 74, 0.08), transparent 32%),
     radial-gradient(circle at top left, rgba(255, 122, 26, 0.1), transparent 34%),
     #fffefc;
-  border-radius: 28px;
+  border-radius: 22px;
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.24);
   border: 1px solid rgba(0, 0, 0, 0.06);
   overflow: hidden;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
 }
 
 .kk-auth-close {
   position: absolute;
-  top: 1rem;
-  right: 1rem;
-  width: 42px;
-  height: 42px;
+  top: 0.85rem;
+  right: 0.85rem;
+  width: 38px;
+  height: 38px;
   border: none;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.05);
@@ -207,7 +209,7 @@ button {
 }
 
 .kk-auth-header {
-  padding: 2rem 2rem 1rem;
+  padding: 1.35rem 1.35rem 0.8rem;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
@@ -224,8 +226,8 @@ button {
 }
 
 .kk-auth-heading {
-  margin: 0.85rem 0 0.4rem;
-  font-size: 2rem;
+  margin: 0.65rem 0 0.25rem;
+  font-size: 1.6rem;
   line-height: 1.1;
 }
 
@@ -236,20 +238,20 @@ button {
 }
 
 .kk-auth-body {
-  padding: 1.4rem 2rem 2rem;
+  padding: 1rem 1.35rem 1.35rem;
 }
 
 .kk-auth-pane {
   position: relative;
-  padding: 1.1rem;
-  border-radius: 24px;
+  padding: 0.9rem;
+  border-radius: 18px;
   background: linear-gradient(180deg, rgba(255, 250, 245, 0.95), rgba(255, 255, 255, 0.96));
   border: 1px solid rgba(0, 0, 0, 0.06);
   overflow: hidden;
 }
 
 .kk-auth-pane-custom {
-  padding: 1.35rem;
+  padding: 1rem;
 }
 
 .kk-auth-pane-glow {
@@ -263,10 +265,10 @@ button {
 
 .kk-auth-secondary {
   display: flex;
-  gap: 0.85rem;
+  gap: 0.7rem;
   flex-wrap: wrap;
-  margin-top: 1.4rem;
-  padding-top: 1.4rem;
+  margin-top: 0.8rem;
+  padding-top: 0.8rem;
   border-top: 1px solid rgba(0, 0, 0, 0.06);
 }
 
@@ -280,7 +282,7 @@ button {
 .kk-auth-topbar {
   display: flex;
   justify-content: flex-start;
-  margin-bottom: 0.9rem;
+  margin-bottom: 0.7rem;
 }
 
 .kk-auth-back {
@@ -296,16 +298,16 @@ button {
 .kk-auth-tabs {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.65rem;
-  margin-bottom: 1.15rem;
+  gap: 0.55rem;
+  margin-bottom: 0.9rem;
 }
 
 .kk-auth-tab {
   border: 1px solid rgba(0, 0, 0, 0.08);
   background: rgba(255, 255, 255, 0.9);
   color: var(--text-dark);
-  border-radius: 16px;
-  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  padding: 0.7rem 0.85rem;
   font-weight: 800;
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
@@ -319,13 +321,14 @@ button {
 
 .kk-auth-custom-copy h3 {
   margin: 0 0 0.35rem;
-  font-size: 1.5rem;
+  font-size: 1.2rem;
 }
 
 .kk-auth-custom-copy p {
-  margin: 0 0 1.1rem;
+  margin: 0 0 0.9rem;
   color: var(--text-muted);
-  line-height: 1.55;
+  line-height: 1.45;
+  font-size: 0.92rem;
 }
 
 .kk-auth-label {
@@ -337,14 +340,14 @@ button {
 
 .kk-auth-input {
   width: 100%;
-  min-height: 56px;
-  border-radius: 16px;
+  min-height: 48px;
+  border-radius: 14px;
   border: 1px solid rgba(0, 0, 0, 0.1);
   background: #fff;
   color: var(--text-dark);
   padding: 0 1rem;
   font: inherit;
-  margin-bottom: 0.95rem;
+  margin-bottom: 0.8rem;
 }
 
 .kk-auth-input:focus {
@@ -355,9 +358,9 @@ button {
 
 .kk-auth-custom-button {
   width: 100%;
-  min-height: 56px;
+  min-height: 48px;
   border: none;
-  border-radius: 16px;
+  border-radius: 14px;
   background: linear-gradient(90deg, #ff7a1a 0%, #008c4a 100%);
   color: white;
   font-size: 1rem;
@@ -372,7 +375,7 @@ button {
 }
 
 .kk-auth-link-button {
-  margin-top: 0.85rem;
+  margin-top: 0.7rem;
   border: none;
   background: transparent;
   color: var(--orange);
@@ -381,13 +384,25 @@ button {
   padding: 0;
 }
 
+.kk-auth-link-button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.kk-auth-verify-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
 .kk-auth-error,
 .kk-auth-info {
-  border-radius: 14px;
-  padding: 0.85rem 0.95rem;
-  margin-bottom: 0.95rem;
-  font-size: 0.92rem;
-  line-height: 1.5;
+  border-radius: 12px;
+  padding: 0.7rem 0.8rem;
+  margin-bottom: 0.8rem;
+  font-size: 0.88rem;
+  line-height: 1.4;
 }
 
 .kk-auth-error {
@@ -404,37 +419,38 @@ button {
 
 .kk-auth-success {
   text-align: center;
-  padding: 1rem 0 0.25rem;
+  padding: 0.65rem 0 0.15rem;
 }
 
 .kk-auth-success-icon {
-  width: 68px;
-  height: 68px;
-  margin: 0 auto 0.9rem;
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 0.7rem;
   border-radius: 50%;
   display: grid;
   place-items: center;
   background: linear-gradient(135deg, rgba(255, 122, 26, 0.15), rgba(0, 140, 74, 0.15));
   color: var(--green);
-  font-size: 1.8rem;
+  font-size: 1.3rem;
   font-weight: 900;
 }
 
 .kk-auth-success h3 {
-  margin: 0 0 0.4rem;
-  font-size: 1.45rem;
+  margin: 0 0 0.3rem;
+  font-size: 1.2rem;
 }
 
 .kk-auth-success p {
   margin: 0 auto;
-  max-width: 420px;
+  max-width: 340px;
   color: var(--text-muted);
+  font-size: 0.92rem;
 }
 
 .kk-auth-success-actions {
   display: grid;
-  gap: 1rem;
-  margin-top: 1.4rem;
+  gap: 0.8rem;
+  margin-top: 1rem;
 }
 
 .kk-auth-user-row {
@@ -445,19 +461,28 @@ button {
 }
 
 @media (max-width: 768px) {
+  .kk-auth-modal {
+    padding: 0.75rem;
+  }
+
   .kk-auth-header,
   .kk-auth-body {
-    padding-left: 1.2rem;
-    padding-right: 1.2rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
 
   .kk-auth-heading {
-    font-size: 1.6rem;
+    font-size: 1.35rem;
   }
 
   .kk-auth-secondary,
   .kk-auth-user-row {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .kk-auth-verify-actions {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

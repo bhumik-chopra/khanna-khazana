@@ -139,6 +139,50 @@ export default function LoginModal({ open, onClose, onPartner }) {
     }
   };
 
+  const resendVerificationCode = async () => {
+    if (!emailAddress.trim()) {
+      setErrorMessage("Please enter your email address first.");
+      return;
+    }
+
+    setBusy(true);
+    setErrorMessage("");
+
+    try {
+      if (authMode === "sign-up") {
+        if (!signUpLoaded || !signUp) {
+          throw new Error("Clerk is still loading.");
+        }
+
+        await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+      } else {
+        if (!signInLoaded || !signIn) {
+          throw new Error("Clerk is still loading.");
+        }
+
+        const signInAttempt = await signIn.create({ identifier: emailAddress.trim() });
+        const emailFactor = signInAttempt.supportedFirstFactors?.find(
+          (factor) => factor.strategy === "email_code"
+        );
+
+        if (!emailFactor || !("emailAddressId" in emailFactor)) {
+          throw new Error("Email verification is not available for this account.");
+        }
+
+        await signIn.prepareFirstFactor({
+          strategy: "email_code",
+          emailAddressId: emailFactor.emailAddressId
+        });
+      }
+
+      setInfoMessage(`A new verification code was sent to ${emailAddress.trim()}. Use the latest one.`);
+    } catch (error) {
+      setErrorMessage(getClerkErrorMessage(error, "We couldn't resend the verification code."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (!open) return null;
 
   return (
@@ -269,7 +313,7 @@ export default function LoginModal({ open, onClose, onPartner }) {
                         <p>
                           {step === "collect"
                             ? "No phone login. We only use your email and a verification code."
-                            : "Enter the code we sent to your email address to continue."}
+                            : "Enter the latest code we sent to your email address to continue."}
                         </p>
                       </div>
 
@@ -323,17 +367,27 @@ export default function LoginModal({ open, onClose, onPartner }) {
                       </button>
 
                       {step === "verify" && (
-                        <button
-                          type="button"
-                          className="kk-auth-link-button login-modal-target"
-                          onClick={() => {
-                            setStep("collect");
-                            setVerificationCode("");
-                            setErrorMessage("");
-                          }}
-                        >
-                          Change email address
-                        </button>
+                        <div className="kk-auth-verify-actions">
+                          <button
+                            type="button"
+                            className="kk-auth-link-button login-modal-target"
+                            onClick={resendVerificationCode}
+                            disabled={busy}
+                          >
+                            Resend code
+                          </button>
+                          <button
+                            type="button"
+                            className="kk-auth-link-button login-modal-target"
+                            onClick={() => {
+                              setStep("collect");
+                              setVerificationCode("");
+                              setErrorMessage("");
+                            }}
+                          >
+                            Change email address
+                          </button>
+                        </div>
                       )}
                     </div>
                   </SignedOut>
