@@ -3,15 +3,8 @@ import { SignedIn, SignedOut, UserButton } from "@clerk/clerk-react";
 import { Link } from "react-router-dom";
 import logo1 from "./logo1.jpg";
 
-const defaultClerkPublishableKey =
-  "pk_test_cHJvYmFibGUtYnVubnktODEuY2xlcmsuYWNjb3VudHMuZGV2JA";
-
 const Navbar = ({ onCartClick, onLoginClick, cartCount = 0 }) => {
-  const clerkEnabled = Boolean(
-    process.env.REACT_APP_CLERK_PUBLISHABLE_KEY ||
-      process.env.REACT_APP_CLERKPUBLICKEY ||
-      defaultClerkPublishableKey
-  );
+  const clerkEnabled = Boolean(process.env.REACT_APP_CLERK_PUBLISHABLE_KEY);
 
   const scrollTo = (id) => {
     const el = document.getElementById(id);
