@@ -1,11 +1,18 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { SignIn, SignedIn, SignedOut, SignOutButton, UserButton } from "@clerk/clerk-react";
 import TargetCursor from "./TargetCursor";
 
-export default function LoginModal({ open, onClose, onPartner, onFoodie }) {
+export default function LoginModal({ open, onClose, onPartner }) {
+  const [mode, setMode] = useState("chooser");
   const clerkEnabled = Boolean(
     process.env.REACT_APP_CLERK_PUBLISHABLE_KEY || process.env.REACT_APP_CLERKPUBLICKEY
   );
+
+  useEffect(() => {
+    if (open) {
+      setMode("chooser");
+    }
+  }, [open]);
 
   const clerkAppearance = {
     variables: {
@@ -66,106 +73,123 @@ export default function LoginModal({ open, onClose, onPartner, onFoodie }) {
               aria-label="Close"
               onClick={onClose}
             >
-              ×
+              x
             </button>
 
             <div className="kk-auth-header">
               <div className="kk-auth-badge">Khanna Khazana</div>
-              <h2 className="kk-auth-heading">Sign in or create your account</h2>
+              <h2 className="kk-auth-heading">
+                {mode === "chooser" ? "Login" : "Foodie Sign In"}
+              </h2>
               <p className="kk-auth-copy">
-                Continue with Clerk in a way that matches your food-first Khanna Khazana
-                experience.
+                {mode === "chooser"
+                  ? "Choose how you want to continue with Khanna Khazana."
+                  : "Sign in or create your foodie account right here in the modal."}
               </p>
             </div>
 
             <div className="kk-auth-body">
-              {!clerkEnabled ? (
-                <div className="kk-auth-config">
-                  Add `REACT_APP_CLERK_PUBLISHABLE_KEY` in `frontend/.env.local` to enable Clerk
-                  authentication in this modal.
+              {mode === "chooser" ? (
+                <div className="kk-auth-secondary kk-auth-secondary-chooser">
+                  <button
+                    type="button"
+                    className="btn login-modal-target"
+                    style={{
+                      background: "white",
+                      border: "1px solid rgba(0,0,0,0.12)",
+                      borderRadius: 14,
+                      padding: "0.85rem 1rem",
+                      fontWeight: 800,
+                      minWidth: 220
+                    }}
+                    onClick={() => setMode("foodie")}
+                  >
+                    Login as Foodie
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn login-modal-target"
+                    style={{
+                      background: "linear-gradient(90deg, #ff7a1a 0%, #008c4a 100%)",
+                      color: "white",
+                      border: "none",
+                      borderRadius: 14,
+                      padding: "0.85rem 1rem",
+                      fontWeight: 800,
+                      minWidth: 220
+                    }}
+                    onClick={onPartner}
+                  >
+                    Login as Partner
+                  </button>
                 </div>
               ) : (
                 <>
-                  <SignedOut>
-                    <SignIn
-                      routing="virtual"
-                      withSignUp={true}
-                      fallbackRedirectUrl="/"
-                      appearance={clerkAppearance}
-                    />
-                  </SignedOut>
+                  <div className="kk-auth-topbar">
+                    <button
+                      type="button"
+                      className="kk-auth-back login-modal-target"
+                      onClick={() => setMode("chooser")}
+                    >
+                      Back
+                    </button>
+                  </div>
 
-                  <SignedIn>
-                    <div className="kk-auth-success">
-                      <div className="kk-auth-success-icon">✓</div>
-                      <h3>You're signed in</h3>
-                      <p>Your account is ready. You can continue browsing or manage your profile.</p>
-                      <div className="kk-auth-success-actions">
-                        <button
-                          type="button"
-                          className="btn btn-primary login-modal-target"
-                          onClick={onClose}
-                          style={{ justifyContent: "center" }}
-                        >
-                          Continue shopping
-                        </button>
-                        <div className="kk-auth-user-row">
-                          <UserButton afterSignOutUrl="/" />
-                          <SignOutButton redirectUrl="/">
+                  {!clerkEnabled ? (
+                    <div className="kk-auth-config">
+                      Add `REACT_APP_CLERK_PUBLISHABLE_KEY` in `frontend/.env.local` to enable
+                      Clerk authentication in this modal.
+                    </div>
+                  ) : (
+                    <>
+                      <SignedOut>
+                        <SignIn
+                          routing="virtual"
+                          withSignUp={true}
+                          fallbackRedirectUrl="/"
+                          appearance={clerkAppearance}
+                        />
+                      </SignedOut>
+
+                      <SignedIn>
+                        <div className="kk-auth-success">
+                          <div className="kk-auth-success-icon">OK</div>
+                          <h3>You're signed in</h3>
+                          <p>Your foodie account is ready. You can continue browsing now.</p>
+                          <div className="kk-auth-success-actions">
                             <button
                               type="button"
-                              className="btn login-modal-target"
-                              style={{
-                                background: "white",
-                                border: "1px solid rgba(0,0,0,0.12)",
-                                borderRadius: 14,
-                                fontWeight: 800
-                              }}
+                              className="btn btn-primary login-modal-target"
+                              onClick={onClose}
+                              style={{ justifyContent: "center" }}
                             >
-                              Sign out
+                              Continue shopping
                             </button>
-                          </SignOutButton>
+                            <div className="kk-auth-user-row">
+                              <UserButton afterSignOutUrl="/" />
+                              <SignOutButton redirectUrl="/">
+                                <button
+                                  type="button"
+                                  className="btn login-modal-target"
+                                  style={{
+                                    background: "white",
+                                    border: "1px solid rgba(0,0,0,0.12)",
+                                    borderRadius: 14,
+                                    fontWeight: 800
+                                  }}
+                                >
+                                  Sign out
+                                </button>
+                              </SignOutButton>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  </SignedIn>
+                      </SignedIn>
+                    </>
+                  )}
                 </>
               )}
-
-              <div className="kk-auth-secondary">
-                <button
-                  type="button"
-                  className="btn login-modal-target"
-                  style={{
-                    background: "white",
-                    border: "1px solid rgba(0,0,0,0.12)",
-                    borderRadius: 14,
-                    padding: "0.75rem 1rem",
-                    fontWeight: 800,
-                    minWidth: 170
-                  }}
-                  onClick={onFoodie}
-                >
-                  Continue as Foodie
-                </button>
-
-                <button
-                  type="button"
-                  className="btn login-modal-target"
-                  style={{
-                    background: "linear-gradient(90deg, #ff7a1a 0%, #008c4a 100%)",
-                    color: "white",
-                    border: "none",
-                    borderRadius: 14,
-                    padding: "0.75rem 1rem",
-                    fontWeight: 800,
-                    minWidth: 170
-                  }}
-                  onClick={onPartner}
-                >
-                  Continue as Partner
-                </button>
-              </div>
             </div>
           </div>
         </div>

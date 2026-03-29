@@ -247,10 +247,6 @@ function MainSite() {
       <LoginModal
         open={loginModalOpen}
         onClose={() => setLoginModalOpen(false)}
-        onFoodie={() => {
-          setLoginModalOpen(false);
-          // dummy for now
-        }}
         onPartner={() => {
           setLoginModalOpen(false);
           window.open('https://khanna-khazana-5.onrender.com', '_blank', 'noopener,noreferrer');
