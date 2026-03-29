@@ -235,12 +235,22 @@ button {
   padding: 1.4rem 2rem 2rem;
 }
 
-.kk-auth-config {
-  padding: 1rem 1.1rem;
-  border-radius: 16px;
-  background: rgba(255, 122, 26, 0.08);
-  color: var(--text-dark);
-  border: 1px solid rgba(255, 122, 26, 0.16);
+.kk-auth-pane {
+  position: relative;
+  padding: 1.1rem;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255, 250, 245, 0.95), rgba(255, 255, 255, 0.96));
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.kk-auth-pane-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at top left, rgba(255, 122, 26, 0.12), transparent 32%),
+    radial-gradient(circle at top right, rgba(0, 140, 74, 0.12), transparent 34%);
 }
 
 .kk-clerk-root,
@@ -249,6 +259,7 @@ button {
 }
 
 .kk-clerk-card {
+  position: relative;
   padding: 0;
   background: transparent;
   box-shadow: none;
