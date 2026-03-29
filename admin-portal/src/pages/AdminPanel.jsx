@@ -34,6 +34,7 @@ export default function AdminPanel() {
   const [dishes, setDishes] = useState([]);
   const [removeLoading, setRemoveLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   // toast
   const [toast, setToast] = useState({
@@ -160,9 +161,6 @@ export default function AdminPanel() {
       return;
     }
 
-    const ok = window.confirm("Are you sure you want to delete this dish?");
-    if (!ok) return;
-
     try {
       setRemoveLoading(true);
 
@@ -184,7 +182,12 @@ export default function AdminPanel() {
       showToast("error", "Network error", "Backend not reachable");
     } finally {
       setRemoveLoading(false);
+      setDeleteTarget(null);
     }
+  };
+
+  const requestDelete = (dish) => {
+    setDeleteTarget(dish);
   };
 
   const filteredRemoveList = dishes.filter((d) => {
@@ -418,7 +421,7 @@ export default function AdminPanel() {
                     <button
                       className="btn btn-danger"
                       style={{ borderRadius: 12, fontWeight: 800 }}
-                      onClick={() => deleteDish(dishId)}
+                      onClick={() => requestDelete(d)}
                       disabled={removeLoading}
                     >
                       Delete
@@ -438,6 +441,55 @@ export default function AdminPanel() {
         message={toast.message}
         onClose={() => setToast((t) => ({ ...t, open: false }))}
       />
+
+      {deleteTarget && (
+        <div className="confirm-dialog-backdrop" role="presentation">
+          <div
+            className="confirm-dialog-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-dialog-title"
+          >
+            <div className="confirm-dialog-badge">Delete dish</div>
+            <h3 id="delete-dialog-title" className="confirm-dialog-title">
+              Confirm deletion
+            </h3>
+            <p className="confirm-dialog-text">
+              Are you sure you want to delete{" "}
+              <strong>{deleteTarget.name || "this dish"}</strong>?
+            </p>
+            <p className="confirm-dialog-subtext">
+              This action removes it from the menu and cannot be undone from this panel.
+            </p>
+
+            <div className="confirm-dialog-actions">
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setDeleteTarget(null)}
+                disabled={removeLoading}
+                style={{
+                  background: "white",
+                  border: "1px solid rgba(0,0,0,0.12)",
+                  borderRadius: 12,
+                  fontWeight: 800
+                }}
+              >
+                No
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => deleteDish(deleteTarget._id || deleteTarget.id)}
+                disabled={removeLoading}
+                style={{ borderRadius: 12, fontWeight: 800 }}
+              >
+                {removeLoading ? "Deleting..." : "Yes, delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
