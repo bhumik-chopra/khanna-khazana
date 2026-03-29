@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   SignOutButton,
   SignedIn,
@@ -25,6 +25,17 @@ function resolveAuthResult(result, fallbackResource) {
   return result;
 }
 
+function createHiddenPassword() {
+  if (typeof window !== "undefined" && window.crypto?.getRandomValues) {
+    const bytes = new Uint8Array(18);
+    window.crypto.getRandomValues(bytes);
+    const token = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return `Kk!${token}9z`;
+  }
+
+  return `Kk!${Math.random().toString(36).slice(2)}A9z`;
+}
+
 async function finalizeAuth(resource, setActive) {
   if (typeof resource?.finalize === "function") {
     await resource.finalize({
@@ -47,6 +58,7 @@ export default function LoginModal({ open, onClose, onPartner }) {
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [infoMessage, setInfoMessage] = useState("");
+  const generatedPasswordRef = useRef("");
 
   const { isLoaded: signInLoaded, signIn, setActive: setActiveSignIn } = useSignIn();
   const { isLoaded: signUpLoaded, signUp, setActive: setActiveSignUp } = useSignUp();
@@ -61,6 +73,7 @@ export default function LoginModal({ open, onClose, onPartner }) {
       setBusy(false);
       setErrorMessage("");
       setInfoMessage("");
+      generatedPasswordRef.current = "";
     }
   }, [open]);
 
@@ -82,7 +95,13 @@ export default function LoginModal({ open, onClose, onPartner }) {
           throw new Error("Clerk is still loading.");
         }
 
-        await signUp.create({ emailAddress: email });
+        const hiddenPassword = generatedPasswordRef.current || createHiddenPassword();
+        generatedPasswordRef.current = hiddenPassword;
+
+        await signUp.create({
+          emailAddress: email,
+          password: hiddenPassword
+        });
 
         if (signUp.verifications?.sendEmailCode) {
           await signUp.verifications.sendEmailCode();
@@ -142,6 +161,21 @@ export default function LoginModal({ open, onClose, onPartner }) {
         if (signUp.verifications?.verifyEmailCode) {
           const verificationResult = await signUp.verifications.verifyEmailCode({ code });
           const resolvedSignUp = resolveAuthResult(verificationResult, signUp);
+
+          if (
+            resolvedSignUp?.status === "missing_requirements" &&
+            resolvedSignUp?.missingFields?.includes("password")
+          ) {
+            const hiddenPassword = generatedPasswordRef.current || createHiddenPassword();
+            generatedPasswordRef.current = hiddenPassword;
+            const updatedSignUp = await resolvedSignUp.update({ password: hiddenPassword });
+
+            if (updatedSignUp?.status === "complete") {
+              await finalizeAuth(updatedSignUp, setActiveSignUp);
+              setInfoMessage("Your foodie account is ready.");
+              return;
+            }
+          }
 
           if (resolvedSignUp?.status === "complete") {
             await finalizeAuth(resolvedSignUp, setActiveSignUp);
@@ -352,6 +386,7 @@ export default function LoginModal({ open, onClose, onPartner }) {
                             setVerificationCode("");
                             setErrorMessage("");
                             setInfoMessage("");
+                            generatedPasswordRef.current = "";
                           }}
                         >
                           Sign In
@@ -365,6 +400,7 @@ export default function LoginModal({ open, onClose, onPartner }) {
                             setVerificationCode("");
                             setErrorMessage("");
                             setInfoMessage("");
+                            generatedPasswordRef.current = "";
                           }}
                         >
                           Sign Up
@@ -399,6 +435,15 @@ export default function LoginModal({ open, onClose, onPartner }) {
                             value={emailAddress}
                             onChange={(e) => setEmailAddress(e.target.value)}
                           />
+
+                          {authMode === "sign-up" ? (
+                            <div
+                              id="clerk-captcha"
+                              data-cl-theme="light"
+                              data-cl-size="flexible"
+                              style={{ marginTop: "1rem", minHeight: 66 }}
+                            />
+                          ) : null}
                         </>
                       ) : (
                         <>
@@ -452,6 +497,7 @@ export default function LoginModal({ open, onClose, onPartner }) {
                               setStep("collect");
                               setVerificationCode("");
                               setErrorMessage("");
+                              generatedPasswordRef.current = "";
                             }}
                           >
                             Change email address
