@@ -13,6 +13,18 @@ function getClerkErrorMessage(error, fallback) {
   return error?.errors?.[0]?.longMessage || error?.errors?.[0]?.message || fallback;
 }
 
+function resolveAuthResult(result, fallbackResource) {
+  if (!result) {
+    return fallbackResource;
+  }
+
+  if (result.signIn || result.signUp) {
+    return result.signIn || result.signUp;
+  }
+
+  return result;
+}
+
 async function finalizeAuth(resource, setActive) {
   if (typeof resource?.finalize === "function") {
     await resource.finalize({
@@ -128,10 +140,11 @@ export default function LoginModal({ open, onClose, onPartner }) {
         }
 
         if (signUp.verifications?.verifyEmailCode) {
-          await signUp.verifications.verifyEmailCode({ code });
+          const verificationResult = await signUp.verifications.verifyEmailCode({ code });
+          const resolvedSignUp = resolveAuthResult(verificationResult, signUp);
 
-          if (signUp.status === "complete") {
-            await finalizeAuth(signUp, setActiveSignUp);
+          if (resolvedSignUp?.status === "complete") {
+            await finalizeAuth(resolvedSignUp, setActiveSignUp);
             setInfoMessage("Your foodie account is ready.");
             return;
           }
@@ -153,10 +166,11 @@ export default function LoginModal({ open, onClose, onPartner }) {
       }
 
       if (signIn.emailCode?.verifyCode) {
-        await signIn.emailCode.verifyCode({ code });
+        const verificationResult = await signIn.emailCode.verifyCode({ code });
+        const resolvedSignIn = resolveAuthResult(verificationResult, signIn);
 
-        if (signIn.status === "complete") {
-          await finalizeAuth(signIn, setActiveSignIn);
+        if (resolvedSignIn?.status === "complete") {
+          await finalizeAuth(resolvedSignIn, setActiveSignIn);
           setInfoMessage("Signed in successfully.");
           return;
         }
@@ -173,9 +187,14 @@ export default function LoginModal({ open, onClose, onPartner }) {
         }
       }
 
-      throw new Error("Verification could not be completed yet.");
+      throw new Error("Verification could not be completed yet. Please request a new code and try again.");
     } catch (error) {
-      setErrorMessage(getClerkErrorMessage(error, "The verification code is invalid."));
+      setErrorMessage(
+        getClerkErrorMessage(
+          error,
+          "Verification could not be completed. Please use the latest code or request a new one."
+        )
+      );
     } finally {
       setBusy(false);
     }
