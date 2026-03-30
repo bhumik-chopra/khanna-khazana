@@ -105,7 +105,7 @@ function FloatingDock({ onLoginClick }) {
     <div
       style={{
         position: "fixed",
-        top: "72px",
+        top: "118px",
         left: "50%",
         transform: visible ? "translate(-50%, 0px)" : "translate(-50%, -120px)",
         opacity: visible ? 1 : 0,
