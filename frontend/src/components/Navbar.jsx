@@ -3,7 +3,7 @@ import { SignedIn, SignedOut, UserButton } from "@clerk/clerk-react";
 import { Link } from "react-router-dom";
 import logo1 from "./logo1.jpg";
 
-const Navbar = ({ onLoginClick }) => {
+const Navbar = ({ onCartClick, onLoginClick, cartCount = 0 }) => {
   const clerkEnabled = Boolean(process.env.REACT_APP_CLERK_PUBLISHABLE_KEY);
 
   const scrollTo = (id) => {
@@ -48,6 +48,10 @@ const Navbar = ({ onLoginClick }) => {
             </button>
           )}
 
+          <button className="btn btn-cart" onClick={onCartClick}>
+            Cart
+            {cartCount > 0 && <span className="site-cart-badge">{cartCount}</span>}
+          </button>
         </div>
       </div>
     </header>

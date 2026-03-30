@@ -95,7 +95,7 @@ select {
 
 .site-main {
   position: relative;
-  padding-top: 6.6rem;
+  padding-top: 7.8rem;
 }
 
 .container {
@@ -217,7 +217,7 @@ select {
   top: 0;
   left: 0;
   width: 100%;
-  z-index: 20;
+  z-index: 30;
   padding: 0.9rem 0 0;
 }
 
@@ -275,6 +275,7 @@ select {
   align-items: center;
   gap: 0.7rem;
   flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .site-user-pill {
@@ -1484,6 +1485,10 @@ select {
 
   .site-header {
     padding-top: 0.65rem;
+  }
+
+  .site-main {
+    padding-top: 9rem;
   }
 
   .site-header-actions,

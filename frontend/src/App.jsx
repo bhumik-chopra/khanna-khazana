@@ -105,12 +105,12 @@ function FloatingDock({ onCartClick, cartCount }) {
     <div
       style={{
         position: "fixed",
-        top: "72px",
+        top: "96px",
         left: "50%",
         transform: visible ? "translate(-50%, 0px)" : "translate(-50%, -120px)",
         opacity: visible ? 1 : 0,
         transition: "transform 0.45s cubic-bezier(.22,.61,.36,1), opacity 0.35s ease",
-        zIndex: 9999,
+        zIndex: 15,
         pointerEvents: "none"
       }}
     >
