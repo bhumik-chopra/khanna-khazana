@@ -52,7 +52,7 @@ function useFoodBackgroundMotion() {
   }, []);
 }
 
-function FloatingDock({ onLoginClick }) {
+function FloatingDock({ onCartClick, cartCount }) {
   const [visible, setVisible] = useState(true);
   const [lastScroll, setLastScroll] = useState(0);
 
@@ -95,9 +95,9 @@ function FloatingDock({ onLoginClick }) {
       onClick: () => document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" })
     },
     {
-      label: "Login",
-      icon: <span>Login</span>,
-      onClick: onLoginClick
+      label: "Cart",
+      icon: <span>{cartCount > 0 ? `Cart ${cartCount}` : "Cart"}</span>,
+      onClick: onCartClick
     }
   ];
 
@@ -260,7 +260,7 @@ function MainSite() {
         onLoginClick={() => setLoginModalOpen(true)}
       />
 
-      <FloatingDock onLoginClick={() => setLoginModalOpen(true)} />
+      <FloatingDock onCartClick={() => setIsCartOpen(true)} cartCount={cartCount} />
 
       <LoginModal
         open={loginModalOpen}
