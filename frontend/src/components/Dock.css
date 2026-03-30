@@ -65,7 +65,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  white-space: nowrap;
 
   background: rgba(255,255,255,0.96);
   color: #111;
@@ -101,8 +100,6 @@
 
   /* smaller text */
   font-size: 14px;
-  line-height: 1;
-  white-space: nowrap;
 
   padding: 0 6px;
 
