@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   SignOutButton,
   SignedIn,
@@ -11,17 +11,6 @@ import TargetCursor from "./TargetCursor";
 
 function getClerkErrorMessage(error, fallback) {
   return error?.errors?.[0]?.longMessage || error?.errors?.[0]?.message || fallback;
-}
-
-function createHiddenPassword() {
-  if (typeof window !== "undefined" && window.crypto?.getRandomValues) {
-    const bytes = new Uint8Array(18);
-    window.crypto.getRandomValues(bytes);
-    const token = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-    return `Kk!${token}9z`;
-  }
-
-  return `Kk!${Math.random().toString(36).slice(2)}A9z`;
 }
 
 function describeIncompleteSignUp(resource) {
@@ -52,12 +41,13 @@ export default function LoginModal({ open, onClose, onPartner }) {
   const [mode, setMode] = useState("chooser");
   const [authMode, setAuthMode] = useState("sign-in");
   const [emailAddress, setEmailAddress] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [step, setStep] = useState("collect");
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [infoMessage, setInfoMessage] = useState("");
-  const generatedPasswordRef = useRef("");
 
   const { isLoaded: signInLoaded, signIn, setActive: setActiveSignIn } = useSignIn();
   const { isLoaded: signUpLoaded, signUp, setActive: setActiveSignUp } = useSignUp();
@@ -67,12 +57,13 @@ export default function LoginModal({ open, onClose, onPartner }) {
       setMode("chooser");
       setAuthMode("sign-in");
       setEmailAddress("");
+      setPassword("");
+      setConfirmPassword("");
       setVerificationCode("");
       setStep("collect");
       setBusy(false);
       setErrorMessage("");
       setInfoMessage("");
-      generatedPasswordRef.current = "";
     }
   }, [open]);
 
@@ -81,6 +72,16 @@ export default function LoginModal({ open, onClose, onPartner }) {
 
     if (!email) {
       setErrorMessage("Please enter your email address.");
+      return;
+    }
+
+    if (!password.trim()) {
+      setErrorMessage("Please enter your password.");
+      return;
+    }
+
+    if (authMode === "sign-up" && password !== confirmPassword) {
+      setErrorMessage("Password and confirm password must match.");
       return;
     }
 
@@ -94,39 +95,41 @@ export default function LoginModal({ open, onClose, onPartner }) {
           throw new Error("Clerk is still loading.");
         }
 
-        const hiddenPassword = generatedPasswordRef.current || createHiddenPassword();
-        generatedPasswordRef.current = hiddenPassword;
-
         await signUp.create({
           emailAddress: email,
-          password: hiddenPassword
+          password
         });
 
         await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+        setStep("verify");
+        setInfoMessage(`We sent a verification code to ${email}.`);
       } else {
         if (!signInLoaded || !signIn) {
           throw new Error("Clerk is still loading.");
         }
 
-        const signInAttempt = await signIn.create({ identifier: email });
-        const emailFactor = signInAttempt.supportedFirstFactors?.find(
-          (factor) => factor.strategy === "email_code"
-        );
+        const result = await signIn.create({
+          identifier: email,
+          password
+        });
 
-        if (!emailFactor || !("emailAddressId" in emailFactor)) {
-          throw new Error("Email verification is not available for this account.");
+        if (result.status === "complete") {
+          await finalizeAuth(result, setActiveSignIn);
+          setInfoMessage("Signed in successfully.");
+          return;
         }
 
-        await signIn.prepareFirstFactor({
-          strategy: "email_code",
-          emailAddressId: emailFactor.emailAddressId
-        });
+        throw new Error(`Sign-in returned status "${result.status}".`);
       }
-
-      setStep("verify");
-      setInfoMessage(`We sent a verification code to ${email}.`);
     } catch (error) {
-      setErrorMessage(getClerkErrorMessage(error, "We couldn't start email verification."));
+      setErrorMessage(
+        getClerkErrorMessage(
+          error,
+          authMode === "sign-up"
+            ? "We couldn't start sign-up."
+            : "We couldn't sign you in with email and password."
+        )
+      );
     } finally {
       setBusy(false);
     }
@@ -164,22 +167,7 @@ export default function LoginModal({ open, onClose, onPartner }) {
         throw new Error(`Sign-up verification returned status "${result.status}".`);
       }
 
-      if (!signInLoaded || !signIn) {
-        throw new Error("Clerk is still loading.");
-      }
-
-      const result = await signIn.attemptFirstFactor({
-        strategy: "email_code",
-        code
-      });
-
-      if (result.status === "complete") {
-        await finalizeAuth(result, setActiveSignIn);
-        setInfoMessage("Signed in successfully.");
-        return;
-      }
-
-      throw new Error(`Sign-in verification returned status "${result.status}".`);
+      throw new Error("Email code verification is only used for sign-up.");
     } catch (error) {
       setErrorMessage(
         getClerkErrorMessage(
@@ -202,31 +190,11 @@ export default function LoginModal({ open, onClose, onPartner }) {
     setErrorMessage("");
 
     try {
-      if (authMode === "sign-up") {
-        if (!signUpLoaded || !signUp) {
-          throw new Error("Clerk is still loading.");
-        }
-
-        await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
-      } else {
-        if (!signInLoaded || !signIn) {
-          throw new Error("Clerk is still loading.");
-        }
-
-        const signInAttempt = await signIn.create({ identifier: emailAddress.trim() });
-        const emailFactor = signInAttempt.supportedFirstFactors?.find(
-          (factor) => factor.strategy === "email_code"
-        );
-
-        if (!emailFactor || !("emailAddressId" in emailFactor)) {
-          throw new Error("Email verification is not available for this account.");
-        }
-
-        await signIn.prepareFirstFactor({
-          strategy: "email_code",
-          emailAddressId: emailFactor.emailAddressId
-        });
+      if (!signUpLoaded || !signUp) {
+        throw new Error("Clerk is still loading.");
       }
+
+      await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
 
       setInfoMessage(`A new verification code was sent to ${emailAddress.trim()}. Use the latest one.`);
     } catch (error) {
@@ -265,12 +233,12 @@ export default function LoginModal({ open, onClose, onPartner }) {
             <div className="kk-auth-header">
               <div className="kk-auth-badge">Khanna Khazana</div>
               <h2 className="kk-auth-heading">
-                {mode === "chooser" ? "Login" : "Foodie Account"}
+                {mode === "chooser" ? "Foodie Login" : "Foodie Account"}
               </h2>
               <p className="kk-auth-copy">
                 {mode === "chooser"
                   ? "Choose how you want to continue with Khanna Khazana."
-                  : "Use your email address and verify with a one-time code."}
+                  : "Use your email address and password for your foodie account."}
               </p>
             </div>
 
@@ -333,10 +301,11 @@ export default function LoginModal({ open, onClose, onPartner }) {
                           onClick={() => {
                             setAuthMode("sign-in");
                             setStep("collect");
+                            setPassword("");
+                            setConfirmPassword("");
                             setVerificationCode("");
                             setErrorMessage("");
                             setInfoMessage("");
-                            generatedPasswordRef.current = "";
                           }}
                         >
                           Sign In
@@ -347,10 +316,11 @@ export default function LoginModal({ open, onClose, onPartner }) {
                           onClick={() => {
                             setAuthMode("sign-up");
                             setStep("collect");
+                            setPassword("");
+                            setConfirmPassword("");
                             setVerificationCode("");
                             setErrorMessage("");
                             setInfoMessage("");
-                            generatedPasswordRef.current = "";
                           }}
                         >
                           Sign Up
@@ -361,14 +331,16 @@ export default function LoginModal({ open, onClose, onPartner }) {
                         <h3>
                           {step === "collect"
                             ? authMode === "sign-in"
-                              ? "Sign in with email"
+                              ? "Sign in as foodie"
                               : "Create your foodie account"
                             : "Verify your email"}
                         </h3>
                         <p>
                           {step === "collect"
-                            ? "No phone login. We only use your email and a verification code."
-                            : "Enter the latest code we sent to your email address to continue."}
+                            ? authMode === "sign-in"
+                              ? "Use your email address and password to access your foodie account."
+                              : "Create your foodie account with email and password, then verify your email."
+                            : "Enter the latest code we sent to your email address to finish account setup."}
                         </p>
                       </div>
 
@@ -385,6 +357,36 @@ export default function LoginModal({ open, onClose, onPartner }) {
                             value={emailAddress}
                             onChange={(e) => setEmailAddress(e.target.value)}
                           />
+
+                          <label className="kk-auth-label" htmlFor="foodie-password">
+                            Password
+                          </label>
+                          <input
+                            id="foodie-password"
+                            className="kk-auth-input"
+                            type="password"
+                            placeholder={
+                              authMode === "sign-in" ? "Enter your password" : "Create a password"
+                            }
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                          />
+
+                          {authMode === "sign-up" ? (
+                            <>
+                              <label className="kk-auth-label" htmlFor="foodie-confirm-password">
+                                Confirm password
+                              </label>
+                              <input
+                                id="foodie-confirm-password"
+                                className="kk-auth-input"
+                                type="password"
+                                placeholder="Confirm your password"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                              />
+                            </>
+                          ) : null}
 
                           {authMode === "sign-up" ? (
                             <div
@@ -425,12 +427,12 @@ export default function LoginModal({ open, onClose, onPartner }) {
                           ? "Please wait..."
                           : step === "collect"
                             ? authMode === "sign-in"
-                              ? "Send sign-in code"
-                              : "Send sign-up code"
-                            : "Verify and continue"}
+                              ? "Sign in as foodie"
+                              : "Create foodie account"
+                            : "Verify email and continue"}
                       </button>
 
-                      {step === "verify" && (
+                      {step === "verify" && authMode === "sign-up" && (
                         <div className="kk-auth-verify-actions">
                           <button
                             type="button"
@@ -447,7 +449,6 @@ export default function LoginModal({ open, onClose, onPartner }) {
                               setStep("collect");
                               setVerificationCode("");
                               setErrorMessage("");
-                              generatedPasswordRef.current = "";
                             }}
                           >
                             Change email address
