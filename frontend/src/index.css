@@ -1230,14 +1230,13 @@ select {
   position: relative;
   border-radius: 28px;
   background:
-    radial-gradient(circle at top left, rgba(255, 122, 26, 0.14), transparent 34%),
-    radial-gradient(circle at top right, rgba(10, 163, 92, 0.14), transparent 34%),
-    rgba(255, 255, 255, 0.94);
+    radial-gradient(circle at top left, rgba(255, 122, 26, 0.10), transparent 34%),
+    radial-gradient(circle at top right, rgba(10, 163, 92, 0.10), transparent 34%),
+    #fffaf5;
   border: 1px solid rgba(255, 255, 255, 0.78);
   box-shadow: 0 34px 100px rgba(16, 21, 16, 0.24);
   max-height: calc(100vh - 2rem);
   overflow-y: auto;
-  backdrop-filter: blur(18px);
 }
 
 .kk-auth-close {
