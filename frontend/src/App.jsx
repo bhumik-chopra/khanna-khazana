@@ -294,8 +294,26 @@ function MainSite() {
         amount: data.amount,
         currency: data.currency || "INR",
         name: "Khanna Khazana",
-        description: "Fresh food checkout",
+        description: "UPI checkout",
         order_id: data.paymentOrderId,
+        config: {
+          display: {
+            blocks: {
+              upi: {
+                name: "Pay by UPI",
+                instruments: [
+                  {
+                    method: "upi"
+                  }
+                ]
+              }
+            },
+            sequence: ["block.upi"],
+            preferences: {
+              show_default_blocks: false
+            }
+          }
+        },
         handler: async (response) => {
           try {
             const verifyRes = await fetch(`${API_BASE}/api/orders/verify-payment`, {
@@ -332,7 +350,8 @@ function MainSite() {
           name: "Khanna Khazana Customer"
         },
         notes: {
-          itemsCount: String(items.length)
+          itemsCount: String(items.length),
+          paymentMode: "upi"
         },
         theme: {
           color: "#ff7a1a"
