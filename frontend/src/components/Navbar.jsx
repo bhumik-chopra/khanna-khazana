@@ -12,7 +12,16 @@ const Navbar = ({ onLoginClick }) => {
   };
 
   return (
-    <header className="site-header">
+    <header
+      className="site-header"
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        width: "100%",
+      }}
+    >
       <div className="container site-header-inner">
         <Link to="/" className="site-brand" aria-label="Go to home">
           <img src={logo1} alt="Khanna Khazana Logo" className="site-brand-logo" />
