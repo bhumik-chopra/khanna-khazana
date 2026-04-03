@@ -294,16 +294,8 @@ function MainSite() {
         amount: data.amount,
         currency: data.currency || "INR",
         name: "Khanna Khazana",
-        description: "UPI checkout",
+        description: "Fresh food checkout",
         order_id: data.paymentOrderId,
-        config: {
-          display: {
-            sequence: ["upi"],
-            preferences: {
-              show_default_blocks: true
-            }
-          }
-        },
         handler: async (response) => {
           try {
             const verifyRes = await fetch(`${API_BASE}/api/orders/verify-payment`, {

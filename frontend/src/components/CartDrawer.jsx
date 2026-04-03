@@ -82,7 +82,7 @@ const CartDrawer = ({
               <strong>Rs {subtotal}</strong>
             </div>
             <div className="cart-payment-note">
-              UPI is prioritized in Razorpay checkout, with other supported methods available if your device or test session does not offer scan-and-pay.
+              Pay with Razorpay test mode using available methods like UPI, cards, and netbanking, then place your order instantly after successful payment.
             </div>
           </div>
 
@@ -94,7 +94,7 @@ const CartDrawer = ({
             {items.length === 0
               ? "Add items to continue"
               : isCheckingOut
-                ? "Opening UPI checkout..."
+                ? "Opening checkout..."
                 : "Proceed to checkout"}
           </button>
         </div>
