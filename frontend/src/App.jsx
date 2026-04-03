@@ -488,11 +488,15 @@ function MainSite() {
       />
 
       {checkoutChooserOpen ? (
-        <div className="kk-auth-modal">
+        <div className="kk-auth-modal" tabIndex="-1" role="dialog" aria-modal="true">
           <div className="kk-auth-backdrop" onClick={() => setCheckoutChooserOpen(false)} />
-          <div className="kk-auth-dialog kk-checkout-dialog">
-            <div className="kk-auth-card kk-checkout-card">
-              <button className="kk-auth-close" onClick={() => setCheckoutChooserOpen(false)}>
+          <div
+            className="kk-auth-dialog kk-checkout-dialog"
+            role="document"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="kk-auth-card kk-checkout-card" onClick={(e) => e.stopPropagation()}>
+              <button type="button" className="kk-auth-close" onClick={() => setCheckoutChooserOpen(false)}>
                 x
               </button>
               <div className="kk-auth-header">
@@ -504,14 +508,18 @@ function MainSite() {
               </div>
               <div className="kk-auth-body">
                 <div className="kk-checkout-grid">
-                  <button className="kk-checkout-option kk-checkout-option-primary" onClick={handleCheckoutFromChooser}>
+                  <button
+                    type="button"
+                    className="kk-checkout-option kk-checkout-option-primary"
+                    onClick={handleCheckoutFromChooser}
+                  >
                     <span className="kk-checkout-option-tag">Recommended</span>
                     <strong>Pay with Razorpay</strong>
                     <span>
                       Open the full checkout with cards, UPI, netbanking, and any other supported payment methods.
                     </span>
                   </button>
-                  <button className="kk-checkout-option" onClick={handleOpenUpiGuide}>
+                  <button type="button" className="kk-checkout-option" onClick={handleOpenUpiGuide}>
                     <span className="kk-checkout-option-tag">UPI helper</span>
                     <strong>Show UPI QR / scan instructions</strong>
                     <span>
@@ -526,11 +534,15 @@ function MainSite() {
       ) : null}
 
       {upiInfoOpen ? (
-        <div className="kk-auth-modal">
+        <div className="kk-auth-modal" tabIndex="-1" role="dialog" aria-modal="true">
           <div className="kk-auth-backdrop" onClick={() => setUpiInfoOpen(false)} />
-          <div className="kk-auth-dialog kk-checkout-dialog">
-            <div className="kk-auth-card kk-checkout-card">
-              <button className="kk-auth-close" onClick={() => setUpiInfoOpen(false)}>
+          <div
+            className="kk-auth-dialog kk-checkout-dialog"
+            role="document"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="kk-auth-card kk-checkout-card" onClick={(e) => e.stopPropagation()}>
+              <button type="button" className="kk-auth-close" onClick={() => setUpiInfoOpen(false)}>
                 x
               </button>
               <div className="kk-auth-header">
@@ -556,10 +568,10 @@ function MainSite() {
                   </div>
                 </div>
                 <div className="kk-upi-actions">
-                  <button className="btn btn-outline" onClick={() => setUpiInfoOpen(false)}>
+                  <button type="button" className="btn btn-outline" onClick={() => setUpiInfoOpen(false)}>
                     Back
                   </button>
-                  <button className="btn btn-primary" onClick={handleTryUpiCheckout}>
+                  <button type="button" className="btn btn-primary" onClick={handleTryUpiCheckout}>
                     Continue to Razorpay
                   </button>
                 </div>
