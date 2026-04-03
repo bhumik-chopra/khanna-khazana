@@ -4,17 +4,6 @@ import StarBorder from "./StarBorder";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
-const qtyBtnStyle = {
-  width: 34,
-  height: 34,
-  borderRadius: 12,
-  cursor: "pointer",
-  fontSize: "1.1rem",
-  fontWeight: 700,
-  display: "grid",
-  placeItems: "center"
-};
-
 const DishCard = ({ dish, qty, onAddToCart, onIncrease, onDecrease }) => {
   const [flipped, setFlipped] = useState(false);
   const id = dish.id || dish._id;
@@ -114,7 +103,6 @@ const DishCard = ({ dish, qty, onAddToCart, onIncrease, onDecrease }) => {
                 ) : (
                   <div className="dish-qty-wrap" onClick={stopCardFlip}>
                     <button
-                      style={qtyBtnStyle}
                       onClick={() => onDecrease(id)}
                       aria-label="Decrease quantity"
                       className="cursor-target dish-qty-btn"
@@ -128,7 +116,6 @@ const DishCard = ({ dish, qty, onAddToCart, onIncrease, onDecrease }) => {
                     </div>
 
                     <button
-                      style={qtyBtnStyle}
                       onClick={() => onIncrease(dish)}
                       aria-label="Increase quantity"
                       className="cursor-target dish-qty-btn is-plus"
@@ -197,7 +184,6 @@ const DishCard = ({ dish, qty, onAddToCart, onIncrease, onDecrease }) => {
                 ) : (
                   <div className="dish-qty-wrap" onClick={stopCardFlip}>
                     <button
-                      style={qtyBtnStyle}
                       onClick={() => onDecrease(id)}
                       aria-label="Decrease quantity"
                       className="cursor-target dish-qty-btn"
@@ -211,7 +197,6 @@ const DishCard = ({ dish, qty, onAddToCart, onIncrease, onDecrease }) => {
                     </div>
 
                     <button
-                      style={qtyBtnStyle}
                       onClick={() => onIncrease(dish)}
                       aria-label="Increase quantity"
                       className="cursor-target dish-qty-btn is-plus"
