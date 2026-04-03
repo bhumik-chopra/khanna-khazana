@@ -573,6 +573,12 @@ select {
   height: 100%;
 }
 
+.dish-grid-border:hover .border-gradient-bottom,
+.dish-grid-border:hover .border-gradient-top {
+  opacity: 0;
+  animation: none;
+}
+
 .dish-card-scene {
   min-height: 100%;
   perspective: 1600px;
@@ -771,6 +777,16 @@ select {
 
 .dish-action-button {
   width: 100%;
+  border-color: transparent;
+  background: linear-gradient(135deg, #ff8a1d, #ff6a00);
+  color: var(--white);
+  box-shadow: 0 16px 34px rgba(255, 122, 26, 0.26);
+}
+
+.dish-action-button:hover {
+  border-color: transparent;
+  background: linear-gradient(135deg, #ff8a1d, #ff6a00);
+  color: var(--white);
 }
 
 .dish-flip-button {
