@@ -397,6 +397,7 @@ function MainSite() {
 
   const openCheckoutChooser = () => {
     if (cartCount === 0 || isCheckingOut) return;
+    setIsCartOpen(false);
     setCheckoutChooserOpen(true);
   };
 
