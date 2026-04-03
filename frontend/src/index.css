@@ -206,19 +206,13 @@ select {
   backdrop-filter: blur(12px);
 }
 
-.btn-cart {
-  color: var(--orange-deep);
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.16);
-}
-
 .site-header {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   z-index: 30;
-  padding: 0.9rem 0 0;
+  padding: 0;
 }
 
 .site-header-inner {
@@ -226,8 +220,8 @@ select {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1rem 1.1rem;
-  border-radius: 0 0 26px 26px;
+  padding: 0.95rem 1.1rem;
+  border-radius: 0;
   color: var(--white);
   background:
     linear-gradient(120deg, rgba(255, 122, 26, 0.92), rgba(255, 174, 46, 0.84) 45%, rgba(10, 163, 92, 0.92)),
@@ -283,17 +277,6 @@ select {
   padding: 0.22rem;
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.18);
-}
-
-.site-cart-badge {
-  min-width: 24px;
-  height: 24px;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--orange-deep), var(--green));
-  color: var(--white);
-  font-size: 0.78rem;
 }
 
 .hero-section {
@@ -1484,7 +1467,7 @@ select {
   }
 
   .site-header {
-    padding-top: 0.65rem;
+    padding-top: 0;
   }
 
   .site-main {
