@@ -298,19 +298,9 @@ function MainSite() {
         order_id: data.paymentOrderId,
         config: {
           display: {
-            blocks: {
-              upi: {
-                name: "Pay by UPI",
-                instruments: [
-                  {
-                    method: "upi"
-                  }
-                ]
-              }
-            },
-            sequence: ["block.upi"],
+            sequence: ["upi"],
             preferences: {
-              show_default_blocks: false
+              show_default_blocks: true
             }
           }
         },

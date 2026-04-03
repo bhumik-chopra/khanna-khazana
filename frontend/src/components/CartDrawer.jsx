@@ -82,7 +82,7 @@ const CartDrawer = ({
               <strong>Rs {subtotal}</strong>
             </div>
             <div className="cart-payment-note">
-              Pay with UPI in Razorpay test mode. On supported desktop flows, Razorpay can also show a QR code for scan-and-pay.
+              UPI is prioritized in Razorpay checkout, with other supported methods available if your device or test session does not offer scan-and-pay.
             </div>
           </div>
 
@@ -95,7 +95,7 @@ const CartDrawer = ({
               ? "Add items to continue"
               : isCheckingOut
                 ? "Opening UPI checkout..."
-                : "Proceed to UPI checkout"}
+                : "Proceed to checkout"}
           </button>
         </div>
       </aside>
