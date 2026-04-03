@@ -31,7 +31,7 @@ function DockItem({
   return (
     <motion.div
       ref={ref}
-      style={{ width: size, height: size }}
+      style={{ minWidth: size, height: size }}
       onHoverStart={() => isHovered.set(1)}
       onHoverEnd={() => isHovered.set(0)}
       onFocus={() => isHovered.set(1)}

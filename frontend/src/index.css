@@ -776,7 +776,10 @@ select {
 }
 
 .dish-action-button {
-  width: 100%;
+  width: auto;
+  align-self: flex-start;
+  padding: 0.68rem 1.1rem;
+  font-size: 0.88rem;
   border-color: transparent;
   background: linear-gradient(135deg, #ff8a1d, #ff6a00);
   color: var(--white);
