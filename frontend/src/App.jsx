@@ -15,6 +15,36 @@ import Toast from "./components/Toast";
 import Dock from "./components/Dock";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
+const RAZORPAY_SCRIPT_URL = "https://checkout.razorpay.com/v1/checkout.js";
+
+let razorpayScriptPromise = null;
+
+function loadRazorpayScript() {
+  if (window.Razorpay) return Promise.resolve(true);
+  if (razorpayScriptPromise) return razorpayScriptPromise;
+
+  razorpayScriptPromise = new Promise((resolve) => {
+    const existing = document.querySelector(`script[src="${RAZORPAY_SCRIPT_URL}"]`);
+    if (existing) {
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      existing.addEventListener("load", () => resolve(true), { once: true });
+      existing.addEventListener("error", () => resolve(false), { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = RAZORPAY_SCRIPT_URL;
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+
+  return razorpayScriptPromise;
+}
 
 function useFoodBackgroundMotion() {
   useEffect(() => {
@@ -129,6 +159,7 @@ function MainSite() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [cart, setCart] = useState({});
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [toast, setToast] = useState({ open: false, type: "success", title: "", message: "" });
 
   const showToast = (type, title, message) => setToast({ open: true, type, title, message });
@@ -176,6 +207,12 @@ function MainSite() {
   const cartCount = useMemo(
     () => Object.values(cart).reduce((sum, item) => sum + item.quantity, 0),
     [cart]
+  );
+
+  const cartItems = useMemo(() => Object.values(cart), [cart]);
+  const cartSubtotal = useMemo(
+    () => cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    [cartItems]
   );
 
   const handleAddToCart = (dish) => {
@@ -232,7 +269,14 @@ function MainSite() {
     if (!items.length) return;
 
     try {
-      const res = await fetch(`${API_BASE}/api/orders`, {
+      setIsCheckingOut(true);
+
+      const isScriptLoaded = await loadRazorpayScript();
+      if (!isScriptLoaded || !window.Razorpay) {
+        throw new Error("Unable to load Razorpay checkout");
+      }
+
+      const res = await fetch(`${API_BASE}/api/orders/create-payment-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ items })
@@ -241,14 +285,73 @@ function MainSite() {
       const data = await res.json();
 
       if (!res.ok) {
+        setIsCheckingOut(false);
         return showToast("error", "Checkout failed", data?.message || "Try again");
       }
 
-      showToast("success", "Order placed", `Order ID ${data.orderId}`);
-      setCart({});
-      setIsCartOpen(false);
-    } catch {
-      showToast("error", "Network error", "Try again");
+      const options = {
+        key: data.keyId,
+        amount: data.amount,
+        currency: data.currency || "INR",
+        name: "Khanna Khazana",
+        description: "Fresh food checkout",
+        order_id: data.paymentOrderId,
+        handler: async (response) => {
+          try {
+            const verifyRes = await fetch(`${API_BASE}/api/orders/verify-payment`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                items,
+                ...response
+              })
+            });
+
+            const verifyData = await verifyRes.json();
+
+            if (!verifyRes.ok) {
+              throw new Error(verifyData?.message || "Payment verification failed");
+            }
+
+            showToast("success", "Order placed", `Order ID ${verifyData.orderId}`);
+            setCart({});
+            setIsCartOpen(false);
+          } catch (err) {
+            showToast("error", "Payment captured but order failed", err.message || "Try again");
+          } finally {
+            setIsCheckingOut(false);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setIsCheckingOut(false);
+            showToast("error", "Payment cancelled", "Your order was not placed.");
+          }
+        },
+        prefill: {
+          name: "Khanna Khazana Customer"
+        },
+        notes: {
+          itemsCount: String(items.length)
+        },
+        theme: {
+          color: "#ff7a1a"
+        }
+      };
+
+      const razorpayCheckout = new window.Razorpay(options);
+      razorpayCheckout.on("payment.failed", (response) => {
+        setIsCheckingOut(false);
+        showToast(
+          "error",
+          "Payment failed",
+          response?.error?.description || "Your payment could not be completed."
+        );
+      });
+      razorpayCheckout.open();
+    } catch (err) {
+      setIsCheckingOut(false);
+      showToast("error", "Checkout failed", err.message || "Try again");
     }
   };
 
@@ -313,6 +416,9 @@ function MainSite() {
       <CartDrawer
         isOpen={isCartOpen}
         cartItems={cart}
+        subtotal={cartSubtotal}
+        itemCount={cartCount}
+        isCheckingOut={isCheckingOut}
         onClose={() => setIsCartOpen(false)}
         onCheckout={handleCheckout}
         onIncrease={handleIncrease}

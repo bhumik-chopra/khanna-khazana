@@ -1083,6 +1083,7 @@ select {
 }
 
 .cart-line-item {
+  position: relative;
   margin-bottom: 0.85rem;
   padding: 0.95rem;
   border-radius: 20px;
@@ -1151,12 +1152,49 @@ select {
   border-top: 1px solid var(--line);
 }
 
+.cart-checkout-card {
+  margin-bottom: 0.9rem;
+  padding: 1rem;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at top right, rgba(10, 163, 92, 0.16), transparent 38%),
+    radial-gradient(circle at top left, rgba(255, 122, 26, 0.16), transparent 42%),
+    rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  box-shadow: 0 18px 36px rgba(17, 20, 17, 0.08);
+}
+
+.cart-checkout-badge {
+  display: inline-flex;
+  margin-bottom: 0.95rem;
+  padding: 0.38rem 0.7rem;
+  border-radius: 999px;
+  color: var(--green-deep);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(10, 163, 92, 0.10);
+}
+
 .cart-subtotal-row {
   margin-bottom: 0.7rem;
 }
 
+.cart-payment-note {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
 .cart-checkout-button {
   width: 100%;
+}
+
+.cart-checkout-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.78;
+  transform: none;
 }
 
 .kk-auth-backdrop {

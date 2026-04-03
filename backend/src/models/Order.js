@@ -14,7 +14,11 @@ const orderSchema = new mongoose.Schema(
   {
     items: { type: [orderItemSchema], required: true },
     subtotal: { type: Number, required: true, min: 0 },
-    status: { type: String, default: "created" }
+    status: { type: String, default: "paid" },
+    paymentProvider: { type: String, default: "razorpay" },
+    paymentOrderId: { type: String, default: null },
+    paymentId: { type: String, default: null },
+    paymentSignature: { type: String, default: null }
   },
   { timestamps: true }
 );

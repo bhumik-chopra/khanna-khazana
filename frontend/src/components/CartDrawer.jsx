@@ -1,8 +1,18 @@
 import React from "react";
 
-const CartDrawer = ({ isOpen, cartItems, onClose, onCheckout, onIncrease, onDecrease, onRemove }) => {
+const CartDrawer = ({
+  isOpen,
+  cartItems,
+  subtotal,
+  itemCount,
+  isCheckingOut,
+  onClose,
+  onCheckout,
+  onIncrease,
+  onDecrease,
+  onRemove
+}) => {
   const items = Object.values(cartItems);
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   return (
     <div className="cart-drawer-shell" style={{ pointerEvents: isOpen ? "auto" : "none" }}>
@@ -61,13 +71,31 @@ const CartDrawer = ({ isOpen, cartItems, onClose, onCheckout, onIncrease, onDecr
         </div>
 
         <div className="cart-drawer-footer">
-          <div className="cart-subtotal-row">
-            <span>Subtotal</span>
-            <strong>Rs {subtotal}</strong>
+          <div className="cart-checkout-card">
+            <div className="cart-checkout-badge">Secure checkout</div>
+            <div className="cart-subtotal-row">
+              <span>Items</span>
+              <strong>{itemCount}</strong>
+            </div>
+            <div className="cart-subtotal-row">
+              <span>Subtotal</span>
+              <strong>Rs {subtotal}</strong>
+            </div>
+            <div className="cart-payment-note">
+              Pay with Razorpay test mode and place your order instantly after successful payment.
+            </div>
           </div>
 
-          <button className="btn btn-primary cart-checkout-button" disabled={items.length === 0} onClick={onCheckout}>
-            {items.length === 0 ? "Add items to continue" : "Proceed to checkout"}
+          <button
+            className="btn btn-primary cart-checkout-button"
+            disabled={items.length === 0 || isCheckingOut}
+            onClick={onCheckout}
+          >
+            {items.length === 0
+              ? "Add items to continue"
+              : isCheckingOut
+                ? "Opening Razorpay..."
+                : "Proceed to checkout"}
           </button>
         </div>
       </aside>
