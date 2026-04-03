@@ -116,17 +116,55 @@ function FloatingDock({ onCartClick, cartCount }) {
   const items = [
     {
       label: "Home",
-      icon: <span>Home</span>,
+      icon: (
+        <span className="dock-chip dock-chip-home">
+          <span className="dock-chip-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M4 10.5 12 4l8 6.5" />
+              <path d="M6.5 9.5V20h11V9.5" />
+            </svg>
+          </span>
+          <span className="dock-chip-label">Home</span>
+        </span>
+      ),
       onClick: () => window.scrollTo({ top: 0, behavior: "smooth" })
     },
     {
       label: "Menu",
-      icon: <span>Menu</span>,
+      icon: (
+        <span className="dock-chip dock-chip-menu">
+          <span className="dock-chip-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M5 7h14" />
+              <path d="M5 12h14" />
+              <path d="M5 17h10" />
+            </svg>
+          </span>
+          <span className="dock-chip-label">Menu</span>
+        </span>
+      ),
       onClick: () => document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" })
     },
     {
       label: "Cart",
-      icon: <span>{cartCount > 0 ? `Cart ${cartCount}` : "Cart"}</span>,
+      className: "dock-item-cart",
+      icon: (
+        <span className="dock-chip dock-chip-cart">
+          <span className="dock-chip-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M7 7h13l-1.5 7.5H9L7 7Z" />
+              <path d="M7 7 6.2 4.8A1.5 1.5 0 0 0 4.8 4H3.5" />
+              <circle cx="10" cy="18.2" r="1.2" fill="currentColor" stroke="none" />
+              <circle cx="17.3" cy="18.2" r="1.2" fill="currentColor" stroke="none" />
+            </svg>
+          </span>
+          <span className="dock-chip-copy">
+            <span className="dock-chip-label">Cart</span>
+            <span className="dock-chip-subtitle">{cartCount > 0 ? `${cartCount} item${cartCount > 1 ? "s" : ""}` : "Ready"}</span>
+          </span>
+          {cartCount > 0 ? <span className="dock-chip-badge">{cartCount}</span> : null}
+        </span>
+      ),
       onClick: onCartClick
     }
   ];
@@ -159,6 +197,8 @@ function MainSite() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [cart, setCart] = useState({});
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [checkoutChooserOpen, setCheckoutChooserOpen] = useState(false);
+  const [upiInfoOpen, setUpiInfoOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [toast, setToast] = useState({ open: false, type: "success", title: "", message: "" });
 
@@ -332,8 +372,7 @@ function MainSite() {
           name: "Khanna Khazana Customer"
         },
         notes: {
-          itemsCount: String(items.length),
-          paymentMode: "upi"
+          itemsCount: String(items.length)
         },
         theme: {
           color: "#ff7a1a"
@@ -354,6 +393,26 @@ function MainSite() {
       setIsCheckingOut(false);
       showToast("error", "Checkout failed", err.message || "Try again");
     }
+  };
+
+  const openCheckoutChooser = () => {
+    if (cartCount === 0 || isCheckingOut) return;
+    setCheckoutChooserOpen(true);
+  };
+
+  const handleCheckoutFromChooser = async () => {
+    setCheckoutChooserOpen(false);
+    await handleCheckout();
+  };
+
+  const handleOpenUpiGuide = () => {
+    setCheckoutChooserOpen(false);
+    setUpiInfoOpen(true);
+  };
+
+  const handleTryUpiCheckout = async () => {
+    setUpiInfoOpen(false);
+    await handleCheckout();
   };
 
   return (
@@ -421,11 +480,93 @@ function MainSite() {
         itemCount={cartCount}
         isCheckingOut={isCheckingOut}
         onClose={() => setIsCartOpen(false)}
-        onCheckout={handleCheckout}
+        onCheckout={openCheckoutChooser}
         onIncrease={handleIncrease}
         onDecrease={handleDecrease}
         onRemove={handleRemove}
       />
+
+      {checkoutChooserOpen ? (
+        <div className="kk-auth-modal">
+          <div className="kk-auth-backdrop" onClick={() => setCheckoutChooserOpen(false)} />
+          <div className="kk-auth-dialog kk-checkout-dialog">
+            <div className="kk-auth-card kk-checkout-card">
+              <button className="kk-auth-close" onClick={() => setCheckoutChooserOpen(false)}>
+                x
+              </button>
+              <div className="kk-auth-header">
+                <div className="kk-auth-badge">Checkout paths</div>
+                <h3 className="kk-auth-heading">Choose how you want to pay</h3>
+                <p className="kk-auth-copy">
+                  Complete the same order flow through Razorpay, or open a quick UPI scan guide first.
+                </p>
+              </div>
+              <div className="kk-auth-body">
+                <div className="kk-checkout-grid">
+                  <button className="kk-checkout-option kk-checkout-option-primary" onClick={handleCheckoutFromChooser}>
+                    <span className="kk-checkout-option-tag">Recommended</span>
+                    <strong>Pay with Razorpay</strong>
+                    <span>
+                      Open the full checkout with cards, UPI, netbanking, and any other supported payment methods.
+                    </span>
+                  </button>
+                  <button className="kk-checkout-option" onClick={handleOpenUpiGuide}>
+                    <span className="kk-checkout-option-tag">UPI helper</span>
+                    <strong>Show UPI QR / scan instructions</strong>
+                    <span>
+                      See the fastest way to pay by UPI on desktop or mobile, then continue into checkout.
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {upiInfoOpen ? (
+        <div className="kk-auth-modal">
+          <div className="kk-auth-backdrop" onClick={() => setUpiInfoOpen(false)} />
+          <div className="kk-auth-dialog kk-checkout-dialog">
+            <div className="kk-auth-card kk-checkout-card">
+              <button className="kk-auth-close" onClick={() => setUpiInfoOpen(false)}>
+                x
+              </button>
+              <div className="kk-auth-header">
+                <div className="kk-auth-badge">UPI guide</div>
+                <h3 className="kk-auth-heading">Use UPI with the best path for your device</h3>
+                <p className="kk-auth-copy">
+                  Razorpay controls whether a QR code or app-open option appears, so this guide keeps the flow clear before you continue.
+                </p>
+              </div>
+              <div className="kk-auth-body">
+                <div className="kk-upi-steps">
+                  <div className="kk-upi-step">
+                    <strong>On desktop</strong>
+                    <span>Open checkout and look for a UPI or scan-and-pay option. Razorpay may show a QR code when that method is available for the session.</span>
+                  </div>
+                  <div className="kk-upi-step">
+                    <strong>On mobile</strong>
+                    <span>Open checkout and select UPI. Razorpay often hands off directly to supported apps like Google Pay, PhonePe, or Paytm.</span>
+                  </div>
+                  <div className="kk-upi-step">
+                    <strong>After payment</strong>
+                    <span>Your order is only placed after payment success and backend verification, so MongoDB still gets the final confirmed order.</span>
+                  </div>
+                </div>
+                <div className="kk-upi-actions">
+                  <button className="btn btn-outline" onClick={() => setUpiInfoOpen(false)}>
+                    Back
+                  </button>
+                  <button className="btn btn-primary" onClick={handleTryUpiCheckout}>
+                    Continue to Razorpay
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <Footer />
 
