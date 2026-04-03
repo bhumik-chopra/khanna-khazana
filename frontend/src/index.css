@@ -95,7 +95,7 @@ select {
 
 .site-main {
   position: relative;
-  padding-top: 7.8rem;
+  padding-top: 0;
 }
 
 .container {
@@ -207,28 +207,27 @@ select {
 }
 
 .site-header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
+  position: relative;
   z-index: 30;
-  padding: 0;
+  padding: 1rem 0 0;
 }
 
 .site-header-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 0.95rem 1.1rem;
-  border-radius: 0;
+  gap: 1.2rem;
+  padding: 0.9rem 1rem 0.9rem 1.15rem;
+  border-radius: 999px;
   color: var(--white);
   background:
-    linear-gradient(120deg, rgba(255, 122, 26, 0.92), rgba(255, 174, 46, 0.84) 45%, rgba(10, 163, 92, 0.92)),
-    rgba(255, 255, 255, 0.18);
-  box-shadow: 0 22px 56px rgba(20, 24, 20, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  backdrop-filter: blur(16px);
+    linear-gradient(135deg, rgba(255, 120, 24, 0.94), rgba(255, 176, 43, 0.88) 48%, rgba(10, 163, 92, 0.94)),
+    rgba(255, 255, 255, 0.2);
+  box-shadow:
+    0 20px 44px rgba(20, 24, 20, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  backdrop-filter: blur(18px);
 }
 
 .site-brand {
@@ -237,15 +236,16 @@ select {
   gap: 0.9rem;
   color: inherit;
   text-decoration: none;
+  min-width: 0;
 }
 
 .site-brand-logo {
   width: 50px;
   height: 50px;
   object-fit: cover;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.34);
-  box-shadow: 0 14px 26px rgba(0, 0, 0, 0.18);
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.42);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.16);
 }
 
 .site-brand-copy {
@@ -261,7 +261,7 @@ select {
 
 .site-brand-subtitle {
   font-size: 0.78rem;
-  opacity: 0.9;
+  opacity: 0.86;
 }
 
 .site-header-actions {
@@ -272,11 +272,24 @@ select {
   justify-content: flex-end;
 }
 
+.site-header .btn-ghost-light {
+  min-height: 46px;
+  padding: 0.72rem 1.2rem;
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.26);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.site-header .btn-ghost-light:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
 .site-user-pill {
   border-radius: 999px;
-  padding: 0.22rem;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 0.24rem;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
 .hero-section {
@@ -1467,11 +1480,16 @@ select {
   }
 
   .site-header {
-    padding-top: 0;
+    padding-top: 0.75rem;
   }
 
   .site-main {
-    padding-top: 9rem;
+    padding-top: 0;
+  }
+
+  .site-header-inner {
+    border-radius: 32px;
+    padding: 1rem;
   }
 
   .site-header-actions,
@@ -1480,6 +1498,15 @@ select {
   .kk-auth-user-row {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .site-header-actions {
+    width: 100%;
+  }
+
+  .site-header .btn-ghost-light,
+  .site-user-pill {
+    width: 100%;
   }
 
   .hero-stats,
