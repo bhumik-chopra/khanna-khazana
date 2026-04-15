@@ -760,6 +760,21 @@ select {
   background: rgba(16, 21, 16, 0.05);
 }
 
+.dish-rating-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.18rem;
+  padding: 0.3rem 0.58rem;
+  border-radius: 999px;
+  background: rgba(16, 21, 16, 0.05);
+  color: #ff9f1a;
+}
+
+.dish-rating-star {
+  font-size: 0.82rem;
+  line-height: 1;
+}
+
 .dish-tags {
   display: flex;
   flex-wrap: wrap;
@@ -875,6 +890,10 @@ select {
   color: var(--muted);
   font-size: 0.88rem;
   line-height: 1.7;
+}
+
+.dish-feature-rating {
+  list-style: none;
 }
 
 .process-grid,

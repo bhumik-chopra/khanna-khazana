@@ -1,5 +1,6 @@
 import "./App.css";
 import React, { useMemo, useState, useEffect } from "react";
+import { useAuth } from "@clerk/clerk-react";
 import { Routes, Route } from "react-router-dom";
 
 import LoginModal from "./components/LoginModal";
@@ -189,7 +190,7 @@ function FloatingDock({ onCartClick, cartCount }) {
   );
 }
 
-function MainSite() {
+function MainSite({ clerkEnabled, isSignedIn }) {
   useFoodBackgroundMotion();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [dishes, setDishes] = useState([]);
@@ -299,6 +300,15 @@ function MainSite() {
   };
 
   const handleCheckout = async () => {
+    if (!isSignedIn) {
+      setCheckoutChooserOpen(false);
+      setUpiInfoOpen(false);
+      setIsCartOpen(false);
+      setLoginModalOpen(true);
+      showToast("error", "Sign in required", "Please sign in to your account before payment.");
+      return;
+    }
+
     const items = Object.values(cart).map((item) => ({
       id: item.id,
       name: item.name,
@@ -397,6 +407,20 @@ function MainSite() {
 
   const openCheckoutChooser = () => {
     if (cartCount === 0 || isCheckingOut) return;
+
+    if (!isSignedIn) {
+      setIsCartOpen(false);
+
+      if (clerkEnabled) {
+        setLoginModalOpen(true);
+        showToast("error", "Sign in required", "Please sign in to your account before payment.");
+      } else {
+        showToast("error", "Sign in unavailable", "Customer sign-in must be configured before payment can continue.");
+      }
+
+      return;
+    }
+
     setIsCartOpen(false);
     setCheckoutChooserOpen(true);
   };
@@ -595,9 +619,25 @@ function MainSite() {
 }
 
 export default function App() {
+  const clerkEnabled = Boolean(process.env.REACT_APP_CLERK_PUBLISHABLE_KEY);
+
+  if (clerkEnabled) {
+    return <AuthenticatedAppRoutes clerkEnabled={clerkEnabled} />;
+  }
+
   return (
     <Routes>
-      <Route path="/" element={<MainSite />} />
+      <Route path="/" element={<MainSite clerkEnabled={false} isSignedIn={false} />} />
+    </Routes>
+  );
+}
+
+function AuthenticatedAppRoutes({ clerkEnabled }) {
+  const { isSignedIn } = useAuth();
+
+  return (
+    <Routes>
+      <Route path="/" element={<MainSite clerkEnabled={clerkEnabled} isSignedIn={Boolean(isSignedIn)} />} />
     </Routes>
   );
 }

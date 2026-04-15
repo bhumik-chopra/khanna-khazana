@@ -19,10 +19,9 @@ const DishCard = ({ dish, qty, onAddToCart, onIncrease, onDecrease }) => {
     : typeof dish.tags === "string"
       ? dish.tags.split(",").map((t) => t.trim()).filter(Boolean)
       : [];
-  const displayRating = "3.0";
+  const starCount = 3;
 
   const metaItems = [
-    `Star ${displayRating}`,
     dish.prepTime || "Quick serve",
     dish.category || "Chef special"
   ].filter(Boolean);
@@ -33,6 +32,12 @@ const DishCard = ({ dish, qty, onAddToCart, onIncrease, onDecrease }) => {
   const stopCardFlip = (event) => {
     event.stopPropagation();
   };
+
+  const starIcons = Array.from({ length: starCount }, (_, index) => (
+    <span key={`star-${index}`} className="dish-rating-star" aria-hidden="true">
+      ★
+    </span>
+  ));
 
   return (
     <StarBorder as="div" radius={22} className="dish-grid-border" color="orange" speed="5s">
@@ -82,6 +87,9 @@ const DishCard = ({ dish, qty, onAddToCart, onIncrease, onDecrease }) => {
                 <p className="dish-description">{description}</p>
 
                 <div className="dish-meta">
+                  <span className="dish-rating-icons" aria-label={`${starCount} star dish`}>
+                    {starIcons}
+                  </span>
                   {metaItems.map((item) => (
                     <span key={item}>{item}</span>
                   ))}
@@ -162,6 +170,11 @@ const DishCard = ({ dish, qty, onAddToCart, onIncrease, onDecrease }) => {
                 </div>
 
                 <ul className="dish-feature-list">
+                  <li className="dish-feature-rating">
+                    <span className="dish-rating-icons" aria-label={`${starCount} star dish`}>
+                      {starIcons}
+                    </span>
+                  </li>
                   {metaItems.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
