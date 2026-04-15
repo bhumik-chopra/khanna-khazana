@@ -405,6 +405,11 @@ select {
   border: 1px solid rgba(17, 22, 17, 0.06);
 }
 
+.admin-dish-row.is-selected {
+  border-color: rgba(255, 122, 26, 0.4);
+  box-shadow: 0 16px 30px rgba(255, 122, 26, 0.12);
+}
+
 .admin-dish-name {
   font-weight: 800;
 }

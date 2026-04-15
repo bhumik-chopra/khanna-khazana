@@ -12,7 +12,7 @@ const dishSchema = new mongoose.Schema(
     imagePublicId: { type: String, required: true }, // ✅ Store public ID for deletion
 
     tags: { type: [String], default: [] },
-    rating: { type: Number, default: 4.5 },
+    rating: { type: Number, default: 3 },
     prepTime: { type: String, default: "25-35 min" },
     isBestseller: { type: Boolean, default: false }
   },

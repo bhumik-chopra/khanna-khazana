@@ -19,9 +19,10 @@ const DishCard = ({ dish, qty, onAddToCart, onIncrease, onDecrease }) => {
     : typeof dish.tags === "string"
       ? dish.tags.split(",").map((t) => t.trim()).filter(Boolean)
       : [];
+  const displayRating = "3.0";
 
   const metaItems = [
-    `Star ${dish.rating || "4.8"}`,
+    `Star ${displayRating}`,
     dish.prepTime || "Quick serve",
     dish.category || "Chef special"
   ].filter(Boolean);

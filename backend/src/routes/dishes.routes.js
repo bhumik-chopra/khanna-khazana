@@ -58,7 +58,7 @@ router.get("/categories", async (req, res) => {
 // POST /api/dishes (admin only) multipart/form-data
 router.post("/", requireAdmin, upload.single("image"), async (req, res) => {
   try {
-    const { name, description, price, category, rating, prepTime, tags, isBestseller } = req.body;
+    const { name, description, price, category, prepTime, tags, isBestseller } = req.body;
 
     if (!name || !price || !category || !req.file) {
       return res.status(400).json({ message: "name, price, category, image are required" });
@@ -82,7 +82,7 @@ router.post("/", requireAdmin, upload.single("image"), async (req, res) => {
         .map(t => t.trim())
         .filter(Boolean),
 
-      rating: rating ? Number(rating) : 4.5,
+      rating: 3,
       prepTime: prepTime || "25-35 min",
       isBestseller: String(isBestseller) === "true"
     });
@@ -91,6 +91,57 @@ router.post("/", requireAdmin, upload.single("image"), async (req, res) => {
   } catch (err) {
     console.error("❌ create dish:", err);
     res.status(500).json({ message: "Failed to create dish" });
+  }
+});
+
+// PUT /api/dishes/:id (admin only) multipart/form-data
+router.put("/:id", requireAdmin, upload.single("image"), async (req, res) => {
+  let uploaded = null;
+
+  try {
+    const { id } = req.params;
+    const { name, description, price, category, prepTime, tags, isBestseller } = req.body;
+
+    if (!name || !price || !category) {
+      return res.status(400).json({ message: "name, price and category are required" });
+    }
+
+    const dish = await Dish.findById(id);
+    if (!dish) return res.status(404).json({ message: "Dish not found" });
+
+    const previousImagePublicId = dish.imagePublicId;
+
+    if (req.file) {
+      uploaded = await uploadToCloudinary(req.file.buffer);
+      dish.imageUrl = uploaded.secure_url;
+      dish.imagePublicId = uploaded.public_id;
+    }
+
+    dish.name = name.trim();
+    dish.description = (description || "").trim();
+    dish.price = Number(price);
+    dish.category = category.trim();
+    dish.tags = (tags || "")
+      .split(",")
+      .map(t => t.trim())
+      .filter(Boolean);
+    dish.prepTime = prepTime || "25-35 min";
+    dish.isBestseller = String(isBestseller) === "true";
+
+    await dish.save();
+
+    if (req.file && previousImagePublicId && previousImagePublicId !== dish.imagePublicId) {
+      await deleteFromCloudinary(previousImagePublicId);
+    }
+
+    res.json({ ...dish.toObject(), id: String(dish._id) });
+  } catch (err) {
+    if (uploaded?.public_id) {
+      await deleteFromCloudinary(uploaded.public_id);
+    }
+
+    console.error("update dish:", err);
+    res.status(500).json({ message: "Failed to update dish" });
   }
 });
 
