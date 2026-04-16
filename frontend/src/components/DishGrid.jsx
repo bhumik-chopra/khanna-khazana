@@ -33,8 +33,10 @@ const DishCard = ({ dish, qty, onAddToCart, onIncrease, onDecrease }) => {
     event.stopPropagation();
   };
 
-  const ratingBadges = Array.from({ length: starCount }, (_, index) => (
-    <span key={`star-${index}`} className="dish-rating-badge" aria-hidden="true" />
+  const starIcons = Array.from({ length: starCount }, (_, index) => (
+    <span key={`star-${index}`} className="dish-rating-star" aria-hidden="true">
+      ★
+    </span>
   ));
 
   return (
@@ -86,7 +88,7 @@ const DishCard = ({ dish, qty, onAddToCart, onIncrease, onDecrease }) => {
 
                 <div className="dish-meta">
                   <span className="dish-rating-icons" aria-label={`${starCount} star dish`}>
-                    {ratingBadges}
+                    {starIcons}
                   </span>
                   {metaItems.map((item) => (
                     <span key={item}>{item}</span>
@@ -170,7 +172,7 @@ const DishCard = ({ dish, qty, onAddToCart, onIncrease, onDecrease }) => {
                 <ul className="dish-feature-list">
                   <li className="dish-feature-rating">
                     <span className="dish-rating-icons" aria-label={`${starCount} star dish`}>
-                      {ratingBadges}
+                      {starIcons}
                     </span>
                   </li>
                   {metaItems.map((item) => (
