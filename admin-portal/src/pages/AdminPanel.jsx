@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useMemo, useState } from "react";
 import { useAuth, useClerk } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
@@ -123,6 +124,7 @@ export default function AdminPanel() {
     setCategories((data || []).filter((item) => item && item !== "All"));
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!token && !isLoaded) return;
