@@ -861,9 +861,22 @@ select {
   gap: 0.8rem;
 }
 
+.dish-card-title-block {
+  display: grid;
+  gap: 0.18rem;
+}
+
 .dish-card-heading h3 {
   margin: 0;
   font-size: 1.06rem;
+}
+
+.dish-restaurant-name {
+  color: var(--green-deep);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .dish-price {

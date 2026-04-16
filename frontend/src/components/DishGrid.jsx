@@ -84,7 +84,12 @@ const DishCard = ({ dish, qty, onAddToCart, onIncrease, onDecrease }) => {
 
               <div className="dish-card-body">
                 <div className="dish-card-heading">
-                  <h3>{dish.name}</h3>
+                  <div className="dish-card-title-block">
+                    <h3>{dish.name}</h3>
+                    <span className="dish-restaurant-name">
+                      from {dish.restaurant?.name || "Khanna Khazana Kitchen"}
+                    </span>
+                  </div>
                   <span className="dish-price">Rs {dish.price}</span>
                 </div>
 
@@ -155,7 +160,12 @@ const DishCard = ({ dish, qty, onAddToCart, onIncrease, onDecrease }) => {
                 </div>
 
                 <div className="dish-card-heading">
-                  <h3>{dish.name}</h3>
+                  <div className="dish-card-title-block">
+                    <h3>{dish.name}</h3>
+                    <span className="dish-restaurant-name">
+                      from {dish.restaurant?.name || "Khanna Khazana Kitchen"}
+                    </span>
+                  </div>
                   <span className="dish-price">Rs {dish.price}</span>
                 </div>
 

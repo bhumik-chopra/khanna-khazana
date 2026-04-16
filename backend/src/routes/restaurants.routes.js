@@ -6,7 +6,7 @@ const RestaurantDocument = require("../models/RestaurantDocument");
 const RestaurantInspection = require("../models/RestaurantInspection");
 const RestaurantComplaint = require("../models/RestaurantComplaint");
 const RestaurantAudit = require("../models/RestaurantAudit");
-const { requireAdmin } = require("../middleware/auth");
+const { canAccessRestaurant, requireDashboardUser } = require("../middleware/auth");
 const cloudinary = require("../config/cloudinary");
 const {
   createAuditEntry,
@@ -36,7 +36,12 @@ function uploadToCloudinary(buffer, folder = "khanna-khazana/compliance") {
 router.get("/", async (req, res) => {
   try {
     await ensureDefaultRestaurant();
-    const restaurants = await Restaurant.find({}).sort({ createdAt: -1 });
+    const filter =
+      req.auth?.isPlatformAdmin || !req.auth
+        ? {}
+        : { ownerClerkUserId: req.auth.clerkUserId };
+
+    const restaurants = await Restaurant.find(filter).sort({ createdAt: -1 });
     const restaurantIds = restaurants.map((restaurant) => restaurant._id);
 
     const [documents, complaints] = await Promise.all([
@@ -77,10 +82,16 @@ router.get("/:id", async (req, res) => {
     const restaurant = await Restaurant.findById(req.params.id);
     if (!restaurant) return res.status(404).json({ message: "Restaurant not found" });
 
+    const isOwnerView = canAccessRestaurant(req, restaurant);
+
     const [documents, latestInspection, complaints] = await Promise.all([
-      RestaurantDocument.find({ restaurantId: restaurant._id, isActive: true }).sort({ createdAt: -1 }),
+      isOwnerView
+        ? RestaurantDocument.find({ restaurantId: restaurant._id, isActive: true }).sort({ createdAt: -1 })
+        : Promise.resolve([]),
       RestaurantInspection.findOne({ restaurantId: restaurant._id }).sort({ inspectedAt: -1, createdAt: -1 }),
-      RestaurantComplaint.find({ restaurantId: restaurant._id }).sort({ createdAt: -1 }).limit(25)
+      isOwnerView
+        ? RestaurantComplaint.find({ restaurantId: restaurant._id }).sort({ createdAt: -1 }).limit(25)
+        : Promise.resolve([])
     ]);
 
     res.json({
@@ -90,11 +101,11 @@ router.get("/:id", async (req, res) => {
           (item) => item.status !== "resolved" && item.status !== "rejected"
         ).length
       }),
-      documents: documents.map((doc) => ({ ...doc.toObject(), id: String(doc._id) })),
+      documents: isOwnerView ? documents.map((doc) => ({ ...doc.toObject(), id: String(doc._id) })) : [],
       latestInspection: latestInspection
         ? { ...latestInspection.toObject(), id: String(latestInspection._id) }
         : null,
-      complaints: complaints.map((item) => ({ ...item.toObject(), id: String(item._id) }))
+      complaints: isOwnerView ? complaints.map((item) => ({ ...item.toObject(), id: String(item._id) })) : []
     });
   } catch (err) {
     console.error("restaurant get:", err);
@@ -102,7 +113,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-router.post("/", requireAdmin, async (req, res) => {
+router.post("/", requireDashboardUser, async (req, res) => {
   try {
     const {
       id,
@@ -126,6 +137,17 @@ router.post("/", requireAdmin, async (req, res) => {
     }
 
     const existing = id ? await Restaurant.findById(id) : null;
+    if (existing && !canAccessRestaurant(req, existing)) {
+      return res.status(403).json({ message: "You can only update your own restaurant" });
+    }
+
+    if (!req.auth.isPlatformAdmin && !id) {
+      const ownedRestaurant = await Restaurant.findOne({ ownerClerkUserId: req.auth.clerkUserId });
+      if (ownedRestaurant) {
+        return res.status(400).json({ message: "You already have a restaurant profile" });
+      }
+    }
+
     const previous = existing ? existing.toObject() : null;
 
     const payload = {
@@ -142,7 +164,14 @@ router.post("/", requireAdmin, async (req, res) => {
       staffHygieneStatus: staffHygieneStatus || "unchecked",
       foodHandlingStatus: foodHandlingStatus || "unchecked",
       remarksByAdmin: String(remarksByAdmin || "").trim(),
-      verifiedBy: String(verifiedBy || "admin").trim()
+      verifiedBy: String(verifiedBy || "admin").trim(),
+      ownerClerkUserId: req.auth.isPlatformAdmin
+        ? existing?.ownerClerkUserId || ""
+        : req.auth.clerkUserId,
+      ownerEmail: req.auth.isPlatformAdmin ? existing?.ownerEmail || "" : req.auth.email || "",
+      ownerDisplayName: req.auth.isPlatformAdmin
+        ? existing?.ownerDisplayName || ""
+        : String(req.body.ownerDisplayName || req.auth.email || "Restaurant Owner").trim()
     };
 
     const restaurant = existing
@@ -175,10 +204,13 @@ router.post("/", requireAdmin, async (req, res) => {
   }
 });
 
-router.post("/:id/documents", requireAdmin, upload.single("file"), async (req, res) => {
+router.post("/:id/documents", requireDashboardUser, upload.single("file"), async (req, res) => {
   try {
     const restaurant = await Restaurant.findById(req.params.id);
     if (!restaurant) return res.status(404).json({ message: "Restaurant not found" });
+    if (!canAccessRestaurant(req, restaurant)) {
+      return res.status(403).json({ message: "You can only upload documents for your own restaurant" });
+    }
     if (!req.file) return res.status(400).json({ message: "Document file is required" });
 
     const type = String(req.body.type || "").trim();
@@ -221,10 +253,13 @@ router.post("/:id/documents", requireAdmin, upload.single("file"), async (req, r
   }
 });
 
-router.post("/:id/inspections", requireAdmin, async (req, res) => {
+router.post("/:id/inspections", requireDashboardUser, async (req, res) => {
   try {
     const restaurant = await Restaurant.findById(req.params.id);
     if (!restaurant) return res.status(404).json({ message: "Restaurant not found" });
+    if (!canAccessRestaurant(req, restaurant)) {
+      return res.status(403).json({ message: "You can only inspect your own restaurant" });
+    }
 
     const [documents, complaints] = await Promise.all([
       RestaurantDocument.find({ restaurantId: restaurant._id, isActive: true }).sort({ createdAt: -1 }),
@@ -310,8 +345,13 @@ router.post("/:id/inspections", requireAdmin, async (req, res) => {
   }
 });
 
-router.get("/:id/audit-history", requireAdmin, async (req, res) => {
+router.get("/:id/audit-history", requireDashboardUser, async (req, res) => {
   try {
+    const restaurant = await Restaurant.findById(req.params.id);
+    if (!restaurant) return res.status(404).json({ message: "Restaurant not found" });
+    if (!canAccessRestaurant(req, restaurant)) {
+      return res.status(403).json({ message: "You can only view your own audit history" });
+    }
     const history = await RestaurantAudit.find({ restaurantId: req.params.id })
       .sort({ createdAt: -1 })
       .limit(100);
@@ -322,8 +362,13 @@ router.get("/:id/audit-history", requireAdmin, async (req, res) => {
   }
 });
 
-router.get("/:id/documents", requireAdmin, async (req, res) => {
+router.get("/:id/documents", requireDashboardUser, async (req, res) => {
   try {
+    const restaurant = await Restaurant.findById(req.params.id);
+    if (!restaurant) return res.status(404).json({ message: "Restaurant not found" });
+    if (!canAccessRestaurant(req, restaurant)) {
+      return res.status(403).json({ message: "You can only view your own documents" });
+    }
     const documents = await RestaurantDocument.find({ restaurantId: req.params.id }).sort({ createdAt: -1 });
     res.json(documents.map((doc) => ({ ...doc.toObject(), id: String(doc._id) })));
   } catch (err) {

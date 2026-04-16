@@ -4,6 +4,9 @@ const restaurantSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     slug: { type: String, trim: true, unique: true, sparse: true },
+    ownerClerkUserId: { type: String, default: "", index: true },
+    ownerEmail: { type: String, default: "" },
+    ownerDisplayName: { type: String, default: "" },
     description: { type: String, default: "" },
     location: { type: String, default: "" },
     fssaiLicenseNumber: { type: String, default: "" },

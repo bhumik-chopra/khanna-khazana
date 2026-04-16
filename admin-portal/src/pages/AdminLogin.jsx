@@ -1,14 +1,18 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { SignIn, SignUp, SignedIn, useAuth } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
 import Toast from "../components/Toast";
 import heroWordmark from "./image.png";
+import { adminClerkEnabled } from "../clerkConfig";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "https://khanna-khazana-3.onrender.com";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
+  const { isSignedIn } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [authMode, setAuthMode] = useState("sign-in");
   const [toast, setToast] = useState({
     open: false,
     type: "success",
@@ -17,6 +21,12 @@ export default function AdminLogin() {
   });
 
   const showToast = (type, title, message) => setToast({ open: true, type, title, message });
+
+  useEffect(() => {
+    if (isSignedIn || localStorage.getItem("admin_token")) {
+      navigate("/panel");
+    }
+  }, [isSignedIn, navigate]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -75,39 +85,51 @@ export default function AdminLogin() {
         </section>
 
         <section className="admin-login-card">
-          <div className="admin-card-kicker">Admin Login</div>
+          <div className="admin-card-kicker">Restaurant Access</div>
           <h2>Sign in to the panel</h2>
-          <p>Use your admin credentials to manage the Khanna Khazana experience.</p>
+          <p>Restaurants can create an account here and manage their own dishes inside the shared Khanna Khazana marketplace.</p>
+
+          {adminClerkEnabled ? (
+            <div className="admin-auth-stack">
+              <div className="admin-auth-toggle">
+                <button type="button" className={`admin-auth-chip ${authMode === "sign-in" ? "is-active" : ""}`} onClick={() => setAuthMode("sign-in")}>
+                  Restaurant login
+                </button>
+                <button type="button" className={`admin-auth-chip ${authMode === "sign-up" ? "is-active" : ""}`} onClick={() => setAuthMode("sign-up")}>
+                  Restaurant sign up
+                </button>
+              </div>
+
+              <SignedIn>
+                <div className="admin-auth-signedin">Signed in successfully. Redirecting to the control panel...</div>
+              </SignedIn>
+
+              {!isSignedIn ? (
+                authMode === "sign-in" ? (
+                  <SignIn appearance={{ elements: { rootBox: "admin-clerk-root" } }} />
+                ) : (
+                  <SignUp appearance={{ elements: { rootBox: "admin-clerk-root" } }} />
+                )
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="admin-auth-divider">Platform admin login</div>
 
           <form onSubmit={submit} className="admin-form">
             <label className="admin-field">
               <span>Username</span>
-              <input
-                placeholder="Enter username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-              />
+              <input placeholder="Enter username" value={username} onChange={(e) => setUsername(e.target.value)} />
             </label>
 
             <label className="admin-field">
               <span>Password</span>
-              <input
-                placeholder="Enter password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+              <input placeholder="Enter password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
             </label>
 
             <button className="btn btn-primary admin-button-full">Enter control deck</button>
 
-            <button
-              type="button"
-              className="btn admin-secondary-button"
-              onClick={() =>
-                window.open("https://khanna-khazana-4.onrender.com", "_blank", "noopener,noreferrer")
-              }
-            >
+            <button type="button" className="btn admin-secondary-button" onClick={() => window.open("https://khanna-khazana-4.onrender.com", "_blank", "noopener,noreferrer")}>
               Open delivery portal
             </button>
           </form>

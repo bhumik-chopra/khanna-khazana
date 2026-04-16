@@ -2,7 +2,7 @@ const express = require("express");
 
 const RestaurantComplaint = require("../models/RestaurantComplaint");
 const Restaurant = require("../models/Restaurant");
-const { requireAdmin } = require("../middleware/auth");
+const { canAccessRestaurant, requireDashboardUser } = require("../middleware/auth");
 const {
   createAuditEntry,
   recalculateRestaurantSafety
@@ -44,9 +44,13 @@ router.post("/", async (req, res) => {
   }
 });
 
-router.get("/", requireAdmin, async (req, res) => {
+router.get("/", requireDashboardUser, async (req, res) => {
   try {
-    const complaints = await RestaurantComplaint.find({})
+    const filter = req.auth.isPlatformAdmin
+      ? {}
+      : { restaurantId: { $in: (await Restaurant.find({ ownerClerkUserId: req.auth.clerkUserId }).select("_id")).map((item) => item._id) } };
+
+    const complaints = await RestaurantComplaint.find(filter)
       .populate("restaurantId", "name")
       .sort({ createdAt: -1 });
 
@@ -68,12 +72,15 @@ router.get("/", requireAdmin, async (req, res) => {
   }
 });
 
-router.patch("/:id", requireAdmin, async (req, res) => {
+router.patch("/:id", requireDashboardUser, async (req, res) => {
   try {
     const complaint = await RestaurantComplaint.findById(req.params.id);
     if (!complaint) return res.status(404).json({ message: "Complaint not found" });
 
     const restaurant = await Restaurant.findById(complaint.restaurantId);
+    if (!canAccessRestaurant(req, restaurant)) {
+      return res.status(403).json({ message: "You can only review complaints for your own restaurant" });
+    }
     const previousStatus = complaint.status;
 
     complaint.status = req.body.status || complaint.status;

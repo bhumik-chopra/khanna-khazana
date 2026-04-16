@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useAuth, useClerk } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
 import Toast from "../components/Toast";
 
@@ -27,6 +28,8 @@ const tagsToInput = (tags) => (Array.isArray(tags) ? tags.join(", ") : typeof ta
 export default function AdminPanel() {
   const navigate = useNavigate();
   const token = useMemo(() => localStorage.getItem("admin_token"), []);
+  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { signOut } = useClerk();
   const [activeTab, setActiveTab] = useState("safety");
   const [restaurants, setRestaurants] = useState([]);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState("");
@@ -48,11 +51,30 @@ export default function AdminPanel() {
   const [toast, setToast] = useState({ open: false, type: "success", title: "", message: "" });
 
   const showToast = (type, title, message) => setToast({ open: true, type, title, message });
-  const logout = () => { localStorage.removeItem("admin_token"); navigate("/login"); };
+  const logout = async () => {
+    localStorage.removeItem("admin_token");
+    if (isSignedIn) {
+      await signOut();
+    }
+    navigate("/login");
+  };
   const selectedRestaurant = restaurants.find((item) => item.id === selectedRestaurantId) || null;
 
   const fetchJson = async (url, options = {}) => {
-    const res = await fetch(url, options);
+    const localToken = localStorage.getItem("admin_token");
+    const clerkToken = !localToken && isSignedIn ? await getToken() : null;
+    const authHeaders =
+      localToken || clerkToken
+        ? { Authorization: `Bearer ${localToken || clerkToken}` }
+        : {};
+
+    const res = await fetch(url, {
+      ...options,
+      headers: {
+        ...authHeaders,
+        ...(options.headers || {})
+      }
+    });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.message || "Request failed");
     return data;
@@ -66,10 +88,10 @@ export default function AdminPanel() {
   };
 
   const loadRestaurantDetails = async (restaurantId) => {
-    if (!restaurantId || !token) return;
+    if (!restaurantId) return;
     const [detail, history] = await Promise.all([
       fetchJson(`${API_BASE}/api/restaurants/${restaurantId}`),
-      fetchJson(`${API_BASE}/api/restaurants/${restaurantId}/audit-history`, { headers: { Authorization: `Bearer ${token}` } })
+      fetchJson(`${API_BASE}/api/restaurants/${restaurantId}/audit-history`)
     ]);
     setDocuments(detail.documents || []);
     setAuditHistory(history || []);
@@ -92,8 +114,7 @@ export default function AdminPanel() {
   };
 
   const loadComplaints = async () => {
-    if (!token) return;
-    setComplaints(await fetchJson(`${API_BASE}/api/complaints`, { headers: { Authorization: `Bearer ${token}` } }));
+    setComplaints(await fetchJson(`${API_BASE}/api/complaints`));
   };
 
   const loadDishes = async () => setDishes(await fetchJson(`${API_BASE}/api/dishes`));
@@ -103,7 +124,14 @@ export default function AdminPanel() {
   };
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { loadRestaurants().catch(() => {}); loadComplaints().catch(() => {}); loadDishes().catch(() => {}); loadCategories().catch(() => {}); }, []);
+  useEffect(() => {
+    if (!token && !isLoaded) return;
+    if (!token && !isSignedIn) return;
+    loadRestaurants().catch(() => {});
+    loadComplaints().catch(() => {});
+    loadDishes().catch(() => {});
+    loadCategories().catch(() => {});
+  }, [isLoaded, isSignedIn, token]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (selectedRestaurantId) loadRestaurantDetails(selectedRestaurantId).catch(() => {}); }, [selectedRestaurantId]);
   useEffect(() => {
@@ -117,7 +145,7 @@ export default function AdminPanel() {
     try {
       const data = await fetchJson(`${API_BASE}/api/restaurants`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(restaurantForm)
       });
       showToast("success", "Restaurant saved", `${data.name} updated.`);
@@ -133,7 +161,7 @@ export default function AdminPanel() {
     const fd = new FormData();
     Object.entries(documentForm).forEach(([k, v]) => v != null && fd.append(k, v));
     try {
-      await fetchJson(`${API_BASE}/api/restaurants/${selectedRestaurantId}/documents`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: fd });
+      await fetchJson(`${API_BASE}/api/restaurants/${selectedRestaurantId}/documents`, { method: "POST", body: fd });
       showToast("success", "Document uploaded", "Compliance document saved.");
       setDocumentForm({ type: documentForm.type, label: "", file: null, uploadedBy: "admin" });
       await loadRestaurants(selectedRestaurantId);
@@ -147,7 +175,7 @@ export default function AdminPanel() {
     try {
       const data = await fetchJson(`${API_BASE}/api/restaurants/${selectedRestaurantId}/inspections`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(inspectionForm)
       });
       showToast("success", "Inspection submitted", `Score ${data?.safety?.totalScore ?? 0} / 100`);
@@ -173,7 +201,7 @@ export default function AdminPanel() {
     try {
       const url = mode === "add" ? `${API_BASE}/api/dishes` : `${API_BASE}/api/dishes/${editingDishId}`;
       const method = mode === "add" ? "POST" : "PUT";
-      const data = await fetchJson(url, { method, headers: { Authorization: `Bearer ${token}` }, body: buildDishFormData(form, category) });
+      const data = await fetchJson(url, { method, body: buildDishFormData(form, category) });
       showToast("success", mode === "add" ? "Dish added" : "Dish updated", `${data.name} saved.`);
       await loadDishes();
       await loadCategories();
@@ -190,10 +218,10 @@ export default function AdminPanel() {
     setActiveTab("update");
   };
 
-  const reviewComplaint = async (e) => {
+    const reviewComplaint = async (e) => {
     e.preventDefault();
     try {
-      await fetchJson(`${API_BASE}/api/complaints/${selectedComplaintId}`, { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(complaintReview) });
+      await fetchJson(`${API_BASE}/api/complaints/${selectedComplaintId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(complaintReview) });
       showToast("success", "Complaint updated", "Review saved.");
       setSelectedComplaintId("");
       setComplaintReview(emptyComplaintReview);
@@ -204,7 +232,7 @@ export default function AdminPanel() {
 
   const deleteDish = async () => {
     try {
-      await fetchJson(`${API_BASE}/api/dishes/${deleteTarget.id || deleteTarget._id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      await fetchJson(`${API_BASE}/api/dishes/${deleteTarget.id || deleteTarget._id}`, { method: "DELETE" });
       showToast("success", "Dish deleted", `${deleteTarget.name} removed.`);
       setDeleteTarget(null);
       await loadDishes();

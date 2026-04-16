@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useAuth } from "@clerk/clerk-react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import AdminLogin from "./pages/AdminLogin";
 import AdminPanel from "./pages/AdminPanel";
@@ -40,8 +41,10 @@ function useFoodBackgroundMotion() {
 }
 
 function RequireAuth({ children }) {
+  const { isLoaded, isSignedIn } = useAuth();
   const token = localStorage.getItem("admin_token");
-  if (!token) return <Navigate to="/login" replace />;
+  if (!isLoaded && !token) return null;
+  if (!token && !isSignedIn) return <Navigate to="/login" replace />;
   return children;
 }
 

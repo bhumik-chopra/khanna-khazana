@@ -3,7 +3,7 @@ const multer = require("multer");
 
 const Dish = require("../models/Dish");
 const Restaurant = require("../models/Restaurant");
-const { requireAdmin } = require("../middleware/auth");
+const { canAccessRestaurant, requireDashboardUser } = require("../middleware/auth");
 const cloudinary = require("../config/cloudinary");
 const {
   ensureDefaultRestaurant,
@@ -35,7 +35,12 @@ async function deleteFromCloudinary(publicId) {
 router.get("/", async (req, res) => {
   try {
     const defaultRestaurant = await ensureDefaultRestaurant();
-    const dishes = await Dish.find({}).populate("restaurantId").sort({ createdAt: -1 });
+    const filter =
+      req.auth?.isPlatformAdmin || !req.auth
+        ? {}
+        : { restaurantId: { $in: (await Restaurant.find({ ownerClerkUserId: req.auth.clerkUserId }).select("_id")).map((item) => item._id) } };
+
+    const dishes = await Dish.find(filter).populate("restaurantId").sort({ createdAt: -1 });
 
     res.json(
       dishes.map((dish) => {
@@ -63,7 +68,7 @@ router.get("/categories", async (req, res) => {
   }
 });
 
-router.post("/", requireAdmin, upload.single("image"), async (req, res) => {
+router.post("/", requireDashboardUser, upload.single("image"), async (req, res) => {
   try {
     const {
       name,
@@ -81,8 +86,14 @@ router.post("/", requireAdmin, upload.single("image"), async (req, res) => {
     }
 
     const defaultRestaurant = await ensureDefaultRestaurant();
-    const restaurant = restaurantId ? await Restaurant.findById(restaurantId) : defaultRestaurant;
+    let restaurant = restaurantId ? await Restaurant.findById(restaurantId) : defaultRestaurant;
+    if (!req.auth.isPlatformAdmin) {
+      restaurant = await Restaurant.findOne({ ownerClerkUserId: req.auth.clerkUserId });
+    }
     if (!restaurant) return res.status(400).json({ message: "Valid restaurant is required" });
+    if (!canAccessRestaurant(req, restaurant)) {
+      return res.status(403).json({ message: "You can only create dishes for your own restaurant" });
+    }
 
     const uploaded = await uploadToCloudinary(req.file.buffer);
 
@@ -115,7 +126,7 @@ router.post("/", requireAdmin, upload.single("image"), async (req, res) => {
   }
 });
 
-router.put("/:id", requireAdmin, upload.single("image"), async (req, res) => {
+router.put("/:id", requireDashboardUser, upload.single("image"), async (req, res) => {
   let uploaded = null;
 
   try {
@@ -138,11 +149,17 @@ router.put("/:id", requireAdmin, upload.single("image"), async (req, res) => {
     const dish = await Dish.findById(id);
     if (!dish) return res.status(404).json({ message: "Dish not found" });
 
-    const restaurant = restaurantId
+    let restaurant = restaurantId
       ? await Restaurant.findById(restaurantId)
       : await ensureDefaultRestaurant();
+    if (!req.auth.isPlatformAdmin) {
+      restaurant = await Restaurant.findOne({ ownerClerkUserId: req.auth.clerkUserId });
+    }
 
     if (!restaurant) return res.status(400).json({ message: "Valid restaurant is required" });
+    if (!canAccessRestaurant(req, restaurant) || !canAccessRestaurant(req, await Restaurant.findById(dish.restaurantId))) {
+      return res.status(403).json({ message: "You can only update dishes for your own restaurant" });
+    }
 
     const previousImagePublicId = dish.imagePublicId;
 
@@ -186,11 +203,15 @@ router.put("/:id", requireAdmin, upload.single("image"), async (req, res) => {
   }
 });
 
-router.delete("/:id", requireAdmin, async (req, res) => {
+router.delete("/:id", requireDashboardUser, async (req, res) => {
   try {
     const { id } = req.params;
     const dish = await Dish.findById(id);
     if (!dish) return res.status(404).json({ message: "Dish not found" });
+    const restaurant = await Restaurant.findById(dish.restaurantId);
+    if (!canAccessRestaurant(req, restaurant)) {
+      return res.status(403).json({ message: "You can only delete dishes for your own restaurant" });
+    }
 
     await deleteFromCloudinary(dish.imagePublicId);
     await Dish.findByIdAndDelete(id);

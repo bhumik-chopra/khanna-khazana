@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const { authenticateRequest } = require("./middleware/auth");
 
 const dishesRoutes = require("./routes/dishes.routes");
 const ordersRoutes = require("./routes/orders.routes");
@@ -9,6 +10,7 @@ const complaintsRoutes = require("./routes/complaints.routes");
 
 const app = express();
 app.use(express.json());
+app.use(authenticateRequest);
 
 // ✅ allow multiple origins from env
 const allowed = (process.env.CORS_ORIGIN || "")
