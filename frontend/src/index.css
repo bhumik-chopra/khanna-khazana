@@ -540,6 +540,129 @@ select {
   margin-bottom: 1.8rem;
 }
 
+.safety-filter-bar,
+.restaurant-badge-list,
+.restaurant-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.safety-filter-bar {
+  margin-bottom: 1.2rem;
+}
+
+.safety-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(16, 21, 16, 0.08);
+  box-shadow: 0 10px 24px rgba(17, 20, 17, 0.06);
+}
+
+.restaurant-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.2rem;
+  margin-bottom: 2rem;
+}
+
+.restaurant-card,
+.restaurant-detail-card {
+  padding: 1.2rem;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  box-shadow: var(--shadow-soft);
+}
+
+.restaurant-card-top,
+.restaurant-detail-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.restaurant-card-kicker {
+  display: inline-flex;
+  margin-bottom: 0.45rem;
+  color: var(--orange-deep);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.restaurant-card h3,
+.restaurant-detail-card h3 {
+  margin: 0;
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.restaurant-card-copy {
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.restaurant-score-badge {
+  min-width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--white);
+  background: linear-gradient(135deg, #c2410c, #ea580c);
+}
+
+.restaurant-score-badge.is-good,
+.restaurant-score-badge.is-excellent {
+  background: linear-gradient(135deg, var(--green), #17b66d);
+}
+
+.restaurant-score-badge.is-large {
+  min-width: 96px;
+  height: 96px;
+  font-size: 2rem;
+}
+
+.restaurant-badge {
+  display: inline-flex;
+  padding: 0.38rem 0.72rem;
+  border-radius: 999px;
+  background: rgba(10, 163, 92, 0.10);
+  color: var(--green-deep);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.restaurant-stat-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin: 1rem 0;
+}
+
+.restaurant-stat-list dt,
+.restaurant-stat-list dd {
+  margin: 0;
+}
+
+.restaurant-stat-list dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.restaurant-stat-list dd {
+  font-weight: 700;
+}
+
 .category-pill {
   padding: 0.7rem 1.1rem;
   border: 1px solid rgba(16, 21, 16, 0.08);
@@ -677,6 +800,18 @@ select {
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.dish-safety-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(10, 163, 92, 0.92);
+  color: var(--white);
+  font-size: 0.72rem;
+  font-weight: 800;
 }
 
 .dish-card-body {
@@ -1206,6 +1341,17 @@ select {
   line-height: 1.55;
 }
 
+.cart-trust-note {
+  margin-top: 0.85rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 16px;
+  background: rgba(10, 163, 92, 0.10);
+  border: 1px solid rgba(10, 163, 92, 0.14);
+  color: var(--green-deep);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
 .cart-checkout-button {
   width: 100%;
 }
@@ -1478,6 +1624,54 @@ select {
   font-size: 1.35rem;
 }
 
+.complaint-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.complaint-field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.complaint-field-full {
+  grid-column: 1 / -1;
+}
+
+.complaint-field select,
+.complaint-field input,
+.complaint-field textarea {
+  width: 100%;
+  min-height: 48px;
+  padding: 0.75rem 0.9rem;
+  border-radius: 16px;
+  border: 1px solid rgba(16, 21, 16, 0.10);
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.restaurant-detail-section {
+  padding-top: 2rem;
+}
+
+.restaurant-detail-shell {
+  display: grid;
+  gap: 1.2rem;
+}
+
+.restaurant-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.restaurant-detail-list {
+  margin: 0;
+  padding-left: 1rem;
+  color: var(--muted);
+  line-height: 1.8;
+}
+
 .kk-auth-custom-copy p {
   margin: 0 0 0.9rem;
   color: var(--muted);
@@ -1704,7 +1898,10 @@ select {
   }
 
   .hero-stats,
-  .hero-panel-grid {
+  .hero-panel-grid,
+  .restaurant-stat-list,
+  .restaurant-detail-grid,
+  .complaint-form {
     grid-template-columns: 1fr;
   }
 

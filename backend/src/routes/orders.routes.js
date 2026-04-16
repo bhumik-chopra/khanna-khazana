@@ -1,7 +1,9 @@
 const express = require("express");
 const crypto = require("crypto");
 const Razorpay = require("razorpay");
+
 const Order = require("../models/Order");
+const Dish = require("../models/Dish");
 
 const router = express.Router();
 
@@ -16,12 +18,17 @@ const razorpay =
       })
     : null;
 
-function normalizeItems(items) {
+async function normalizeItems(items) {
   if (!Array.isArray(items) || items.length === 0) {
     throw new Error("Items are required");
   }
 
+  const dishIds = items.map((item) => item.id || item.dishId).filter(Boolean);
+  const dishes = dishIds.length ? await Dish.find({ _id: { $in: dishIds } }).populate("restaurantId") : [];
+  const dishMap = new Map(dishes.map((dish) => [String(dish._id), dish]));
+
   return items.map((item) => {
+    const dish = dishMap.get(String(item.id || item.dishId || ""));
     const name = String(item.name || "").trim();
     const price = Number(item.price);
     const quantity = Number(item.quantity || 1);
@@ -33,7 +40,8 @@ function normalizeItems(items) {
     }
 
     return {
-      dishId: null,
+      dishId: dish ? dish._id : null,
+      restaurantId: dish?.restaurantId?._id || null,
       name,
       price,
       quantity
@@ -45,13 +53,24 @@ function getSubtotal(items) {
   return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 }
 
+function deriveRestaurantSummary(items) {
+  const restaurants = items
+    .map((item) => (item.restaurantId ? String(item.restaurantId) : ""))
+    .filter(Boolean);
+  const uniqueRestaurantIds = [...new Set(restaurants)];
+  return {
+    restaurantId: uniqueRestaurantIds.length === 1 ? uniqueRestaurantIds[0] : null,
+    restaurantName: ""
+  };
+}
+
 router.post("/create-payment-order", async (req, res) => {
   try {
     if (!razorpay) {
       return res.status(500).json({ message: "Razorpay is not configured on the server" });
     }
 
-    const normalizedItems = normalizeItems(req.body.items);
+    const normalizedItems = await normalizeItems(req.body.items);
     const subtotal = getSubtotal(normalizedItems);
 
     const paymentOrder = await razorpay.orders.create({
@@ -92,8 +111,9 @@ router.post("/verify-payment", async (req, res) => {
       return res.status(400).json({ message: "Payment verification details are required" });
     }
 
-    const normalizedItems = normalizeItems(items);
+    const normalizedItems = await normalizeItems(items);
     const subtotal = getSubtotal(normalizedItems);
+    const restaurantSummary = deriveRestaurantSummary(normalizedItems);
 
     const expectedSignature = crypto
       .createHmac("sha256", razorpayKeySecret)
@@ -105,6 +125,7 @@ router.post("/verify-payment", async (req, res) => {
     }
 
     const order = await Order.create({
+      ...restaurantSummary,
       items: normalizedItems,
       subtotal,
       status: "paid",
@@ -130,10 +151,12 @@ router.post("/verify-payment", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const normalizedItems = normalizeItems(req.body.items);
+    const normalizedItems = await normalizeItems(req.body.items);
     const subtotal = getSubtotal(normalizedItems);
+    const restaurantSummary = deriveRestaurantSummary(normalizedItems);
 
     const order = await Order.create({
+      ...restaurantSummary,
       items: normalizedItems,
       subtotal,
       status: "created",

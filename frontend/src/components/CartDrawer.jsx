@@ -6,6 +6,7 @@ const CartDrawer = ({
   subtotal,
   itemCount,
   isCheckingOut,
+  trustedKitchenMessage,
   onClose,
   onCheckout,
   onIncrease,
@@ -84,6 +85,9 @@ const CartDrawer = ({
             <div className="cart-payment-note">
               Pay with Razorpay test mode using available methods like UPI, cards, and netbanking, then place your order instantly after successful payment.
             </div>
+            {trustedKitchenMessage ? (
+              <div className="cart-trust-note">{trustedKitchenMessage}</div>
+            ) : null}
           </div>
 
           <button

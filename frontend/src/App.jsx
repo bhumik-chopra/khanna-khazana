@@ -14,6 +14,10 @@ import CartDrawer from "./components/CartDrawer";
 import Footer from "./components/Footer";
 import Toast from "./components/Toast";
 import Dock from "./components/Dock";
+import SafetyFilterBar from "./components/SafetyFilterBar";
+import RestaurantGrid from "./components/RestaurantGrid";
+import ComplaintModal from "./components/ComplaintModal";
+import RestaurantDetailPage from "./components/RestaurantDetailPage";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 const RAZORPAY_SCRIPT_URL = "https://checkout.razorpay.com/v1/checkout.js";
@@ -194,13 +198,21 @@ function MainSite({ clerkEnabled, isSignedIn }) {
   useFoodBackgroundMotion();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [dishes, setDishes] = useState([]);
+  const [restaurants, setRestaurants] = useState([]);
   const [categories, setCategories] = useState(["All"]);
   const [activeCategory, setActiveCategory] = useState("All");
+  const [safetyFilters, setSafetyFilters] = useState({
+    verifiedOnly: false,
+    scoreAbove80: false,
+    recentlyInspected: false,
+    safePackaging: false
+  });
   const [cart, setCart] = useState({});
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [checkoutChooserOpen, setCheckoutChooserOpen] = useState(false);
   const [upiInfoOpen, setUpiInfoOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [complaintRestaurant, setComplaintRestaurant] = useState(null);
   const [toast, setToast] = useState({ open: false, type: "success", title: "", message: "" });
 
   const showToast = (type, title, message) => setToast({ open: true, type, title, message });
@@ -225,25 +237,56 @@ function MainSite({ clerkEnabled, isSignedIn }) {
     }
   };
 
+  const loadRestaurants = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/restaurants`);
+      const data = await res.json();
+      setRestaurants(Array.isArray(data) ? data : []);
+    } catch {
+      // ignore
+    }
+  };
+
   useEffect(() => {
     loadDishes();
     loadCategories();
+    loadRestaurants();
   }, []);
 
   useEffect(() => {
     const refresh = () => {
       loadDishes();
       loadCategories();
+      loadRestaurants();
     };
 
     window.addEventListener("focus", refresh);
     return () => window.removeEventListener("focus", refresh);
   }, []);
 
+  const filteredRestaurants = useMemo(
+    () =>
+      restaurants.filter((restaurant) => {
+        if (safetyFilters.verifiedOnly && !restaurant.badges?.verifiedKitchen) return false;
+        if (safetyFilters.scoreAbove80 && Number(restaurant.hygieneScore || 0) < 80) return false;
+        if (safetyFilters.recentlyInspected && !restaurant.badges?.recentlyAudited) return false;
+        if (safetyFilters.safePackaging && restaurant.packagingStatus !== "good") return false;
+        return true;
+      }),
+    [restaurants, safetyFilters]
+  );
+
   const filteredDishes = useMemo(() => {
-    if (activeCategory === "All") return dishes;
-    return dishes.filter((d) => d.category === activeCategory);
-  }, [dishes, activeCategory]);
+    const allowedIds = new Set(filteredRestaurants.map((restaurant) => restaurant.id));
+    const scoped = dishes.filter((dish) => {
+      if (allowedIds.size === 0 && restaurants.length > 0) return false;
+      if (allowedIds.size > 0) return allowedIds.has(dish.restaurantId || dish.restaurant?.id);
+      return true;
+    });
+
+    if (activeCategory === "All") return scoped;
+    return scoped.filter((dish) => dish.category === activeCategory);
+  }, [activeCategory, dishes, filteredRestaurants, restaurants.length]);
 
   const cartCount = useMemo(
     () => Object.values(cart).reduce((sum, item) => sum + item.quantity, 0),
@@ -255,6 +298,17 @@ function MainSite({ clerkEnabled, isSignedIn }) {
     () => cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
     [cartItems]
   );
+
+  const trustedKitchenMessage = useMemo(() => {
+    if (!cartItems.length) return "";
+    const restaurantIds = [
+      ...new Set(cartItems.map((item) => item.restaurantId || item.restaurant?.id).filter(Boolean))
+    ];
+    if (restaurantIds.length !== 1) return "";
+    const restaurant = restaurants.find((item) => item.id === restaurantIds[0]);
+    if (!restaurant?.badges?.verifiedKitchen) return "";
+    return `This order is from a verified kitchen: ${restaurant.name}`;
+  }, [cartItems, restaurants]);
 
   const handleAddToCart = (dish) => {
     setCart((prev) => {
@@ -440,6 +494,10 @@ function MainSite({ clerkEnabled, isSignedIn }) {
     await handleCheckout();
   };
 
+  const handleSafetyFilterChange = (key, value) => {
+    setSafetyFilters((prev) => ({ ...prev, [key]: value }));
+  };
+
   return (
     <div className="app-shell">
       <Navbar
@@ -469,6 +527,21 @@ function MainSite({ clerkEnabled, isSignedIn }) {
 
         <section id="menu" className="section menu-section">
           <div className="container">
+            <div className="section-header section-header-left">
+              <p className="badge badge-glass">Trusted kitchens</p>
+              <h2 className="section-title">Browse restaurants with visible safety status</h2>
+              <p className="section-subtitle">
+                Filter kitchens by verification, hygiene score, recent audit, and safe packaging before you order.
+              </p>
+            </div>
+
+            <SafetyFilterBar filters={safetyFilters} onChange={handleSafetyFilterChange} />
+
+            <RestaurantGrid
+              restaurants={filteredRestaurants}
+              onReport={(restaurant) => setComplaintRestaurant(restaurant)}
+            />
+
             <div className="section-header section-header-left">
               <p className="badge badge-glass">Live menu radar</p>
               <h2 className="section-title">Fresh plates tuned to every craving</h2>
@@ -504,6 +577,7 @@ function MainSite({ clerkEnabled, isSignedIn }) {
         subtotal={cartSubtotal}
         itemCount={cartCount}
         isCheckingOut={isCheckingOut}
+        trustedKitchenMessage={trustedKitchenMessage}
         onClose={() => setIsCartOpen(false)}
         onCheckout={openCheckoutChooser}
         onIncrease={handleIncrease}
@@ -607,6 +681,20 @@ function MainSite({ clerkEnabled, isSignedIn }) {
 
       <Footer />
 
+      <ComplaintModal
+        open={Boolean(complaintRestaurant)}
+        restaurant={complaintRestaurant}
+        apiBase={API_BASE}
+        onClose={() => setComplaintRestaurant(null)}
+        onSubmitted={(message, isError = false) =>
+          showToast(
+            isError ? "error" : "success",
+            isError ? "Complaint failed" : "Complaint submitted",
+            message || "KK Control will review this report."
+          )
+        }
+      />
+
       <Toast
         open={toast.open}
         type={toast.type}
@@ -628,6 +716,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<MainSite clerkEnabled={false} isSignedIn={false} />} />
+      <Route path="/restaurants/:id" element={<RestaurantDetailPage apiBase={API_BASE} />} />
     </Routes>
   );
 }
@@ -638,6 +727,7 @@ function AuthenticatedAppRoutes({ clerkEnabled }) {
   return (
     <Routes>
       <Route path="/" element={<MainSite clerkEnabled={clerkEnabled} isSignedIn={Boolean(isSignedIn)} />} />
+      <Route path="/restaurants/:id" element={<RestaurantDetailPage apiBase={API_BASE} />} />
     </Routes>
   );
 }

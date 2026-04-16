@@ -394,6 +394,84 @@ select {
   gap: 0.85rem;
 }
 
+.admin-restaurant-list,
+.admin-document-list,
+.admin-audit-list,
+.admin-complaint-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.admin-restaurant-card,
+.admin-document-card,
+.admin-audit-card,
+.admin-complaint-card,
+.admin-panel-block {
+  padding: 1rem;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(17, 22, 17, 0.06);
+}
+
+.admin-restaurant-card,
+.admin-complaint-card {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-restaurant-card strong,
+.admin-document-card strong,
+.admin-audit-card strong,
+.admin-complaint-card strong {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.admin-restaurant-card span,
+.admin-document-card span,
+.admin-audit-card span,
+.admin-complaint-card span,
+.admin-restaurant-card small,
+.admin-document-card small,
+.admin-audit-card small,
+.admin-complaint-card small {
+  display: block;
+  color: var(--muted);
+}
+
+.admin-restaurant-card.is-selected,
+.admin-complaint-card.is-selected {
+  border-color: rgba(255, 122, 26, 0.4);
+  box-shadow: 0 16px 30px rgba(255, 122, 26, 0.12);
+}
+
+.admin-score-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.admin-score-card {
+  padding: 1rem;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(255, 122, 26, 0.12), rgba(10, 163, 92, 0.12));
+  border: 1px solid rgba(255, 255, 255, 0.82);
+}
+
+.admin-score-card span,
+.admin-score-card small {
+  display: block;
+  color: var(--muted);
+}
+
+.admin-score-card strong {
+  display: block;
+  margin: 0.25rem 0;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.8rem;
+}
+
 .admin-dish-row {
   display: flex;
   align-items: center;
@@ -470,7 +548,8 @@ select {
   }
 
   .admin-login-highlights,
-  .admin-grid-form {
+  .admin-grid-form,
+  .admin-score-strip {
     grid-template-columns: 1fr;
   }
 }

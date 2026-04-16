@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const orderItemSchema = new mongoose.Schema(
   {
     dishId: { type: mongoose.Schema.Types.ObjectId, ref: "Dish", required: false, default: null },
+    restaurantId: { type: mongoose.Schema.Types.ObjectId, ref: "Restaurant", required: false, default: null },
     name: { type: String, required: true },
     price: { type: Number, required: true, min: 0 },
     quantity: { type: Number, required: true, min: 1 }
@@ -12,6 +13,8 @@ const orderItemSchema = new mongoose.Schema(
 
 const orderSchema = new mongoose.Schema(
   {
+    restaurantId: { type: mongoose.Schema.Types.ObjectId, ref: "Restaurant", required: false, default: null },
+    restaurantName: { type: String, default: "" },
     items: { type: [orderItemSchema], required: true },
     subtotal: { type: Number, required: true, min: 0 },
     status: { type: String, default: "paid" },

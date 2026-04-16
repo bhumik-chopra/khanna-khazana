@@ -2,50 +2,58 @@ const express = require("express");
 const multer = require("multer");
 
 const Dish = require("../models/Dish");
+const Restaurant = require("../models/Restaurant");
 const { requireAdmin } = require("../middleware/auth");
 const cloudinary = require("../config/cloudinary");
+const {
+  ensureDefaultRestaurant,
+  enrichRestaurantForResponse
+} = require("../services/restaurantSafety.service");
 
 const router = express.Router();
-
-// ✅ use memory storage (NO uploads folder)
 const upload = multer({ storage: multer.memoryStorage() });
 
-// helper: upload buffer to cloudinary
 function uploadToCloudinary(buffer, folder = "khanna-khazana") {
   return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      { folder },
-      (err, result) => {
-        if (err) return reject(err);
-        resolve(result);
-      }
-    );
+    const stream = cloudinary.uploader.upload_stream({ folder }, (err, result) => {
+      if (err) return reject(err);
+      resolve(result);
+    });
     stream.end(buffer);
   });
 }
 
-// helper: delete cloudinary by public_id
 async function deleteFromCloudinary(publicId) {
   if (!publicId) return;
   try {
     await cloudinary.uploader.destroy(publicId);
   } catch (e) {
-    console.warn("⚠️ Cloudinary delete failed:", e?.message);
+    console.warn("Cloudinary delete failed:", e?.message);
   }
 }
 
-// GET /api/dishes
 router.get("/", async (req, res) => {
   try {
-    const dishes = await Dish.find({}).sort({ createdAt: -1 });
-    res.json(dishes.map(d => ({ ...d.toObject(), id: String(d._id) })));
+    const defaultRestaurant = await ensureDefaultRestaurant();
+    const dishes = await Dish.find({}).populate("restaurantId").sort({ createdAt: -1 });
+
+    res.json(
+      dishes.map((dish) => {
+        const restaurant = dish.restaurantId || defaultRestaurant;
+        return {
+          ...dish.toObject(),
+          id: String(dish._id),
+          restaurantId: String(restaurant?._id || defaultRestaurant._id),
+          restaurant: enrichRestaurantForResponse(restaurant)
+        };
+      })
+    );
   } catch (err) {
-    console.error("❌ dishes get:", err);
+    console.error("dishes get:", err);
     res.status(500).json({ message: "Failed to fetch dishes" });
   }
 });
 
-// GET /api/dishes/categories
 router.get("/categories", async (req, res) => {
   try {
     const categories = await Dish.distinct("category");
@@ -55,16 +63,27 @@ router.get("/categories", async (req, res) => {
   }
 });
 
-// POST /api/dishes (admin only) multipart/form-data
 router.post("/", requireAdmin, upload.single("image"), async (req, res) => {
   try {
-    const { name, description, price, category, prepTime, tags, isBestseller } = req.body;
+    const {
+      name,
+      description,
+      price,
+      category,
+      prepTime,
+      tags,
+      isBestseller,
+      restaurantId
+    } = req.body;
 
     if (!name || !price || !category || !req.file) {
       return res.status(400).json({ message: "name, price, category, image are required" });
     }
 
-    // ✅ upload image bytes to cloudinary
+    const defaultRestaurant = await ensureDefaultRestaurant();
+    const restaurant = restaurantId ? await Restaurant.findById(restaurantId) : defaultRestaurant;
+    if (!restaurant) return res.status(400).json({ message: "Valid restaurant is required" });
+
     const uploaded = await uploadToCloudinary(req.file.buffer);
 
     const dish = await Dish.create({
@@ -72,35 +91,45 @@ router.post("/", requireAdmin, upload.single("image"), async (req, res) => {
       description: (description || "").trim(),
       price: Number(price),
       category: category.trim(),
-
+      restaurantId: restaurant._id,
       imageUrl: uploaded.secure_url,
-      // ✅ save public_id so we can delete later
       imagePublicId: uploaded.public_id,
-
       tags: (tags || "")
         .split(",")
-        .map(t => t.trim())
+        .map((tag) => tag.trim())
         .filter(Boolean),
-
       rating: 3,
       prepTime: prepTime || "25-35 min",
       isBestseller: String(isBestseller) === "true"
     });
 
-    res.status(201).json({ ...dish.toObject(), id: String(dish._id) });
+    res.status(201).json({
+      ...dish.toObject(),
+      id: String(dish._id),
+      restaurantId: String(restaurant._id),
+      restaurant: enrichRestaurantForResponse(restaurant)
+    });
   } catch (err) {
-    console.error("❌ create dish:", err);
+    console.error("create dish:", err);
     res.status(500).json({ message: "Failed to create dish" });
   }
 });
 
-// PUT /api/dishes/:id (admin only) multipart/form-data
 router.put("/:id", requireAdmin, upload.single("image"), async (req, res) => {
   let uploaded = null;
 
   try {
     const { id } = req.params;
-    const { name, description, price, category, prepTime, tags, isBestseller } = req.body;
+    const {
+      name,
+      description,
+      price,
+      category,
+      prepTime,
+      tags,
+      isBestseller,
+      restaurantId
+    } = req.body;
 
     if (!name || !price || !category) {
       return res.status(400).json({ message: "name, price and category are required" });
@@ -108,6 +137,12 @@ router.put("/:id", requireAdmin, upload.single("image"), async (req, res) => {
 
     const dish = await Dish.findById(id);
     if (!dish) return res.status(404).json({ message: "Dish not found" });
+
+    const restaurant = restaurantId
+      ? await Restaurant.findById(restaurantId)
+      : await ensureDefaultRestaurant();
+
+    if (!restaurant) return res.status(400).json({ message: "Valid restaurant is required" });
 
     const previousImagePublicId = dish.imagePublicId;
 
@@ -121,9 +156,10 @@ router.put("/:id", requireAdmin, upload.single("image"), async (req, res) => {
     dish.description = (description || "").trim();
     dish.price = Number(price);
     dish.category = category.trim();
+    dish.restaurantId = restaurant._id;
     dish.tags = (tags || "")
       .split(",")
-      .map(t => t.trim())
+      .map((tag) => tag.trim())
       .filter(Boolean);
     dish.prepTime = prepTime || "25-35 min";
     dish.isBestseller = String(isBestseller) === "true";
@@ -134,7 +170,12 @@ router.put("/:id", requireAdmin, upload.single("image"), async (req, res) => {
       await deleteFromCloudinary(previousImagePublicId);
     }
 
-    res.json({ ...dish.toObject(), id: String(dish._id) });
+    res.json({
+      ...dish.toObject(),
+      id: String(dish._id),
+      restaurantId: String(restaurant._id),
+      restaurant: enrichRestaurantForResponse(restaurant)
+    });
   } catch (err) {
     if (uploaded?.public_id) {
       await deleteFromCloudinary(uploaded.public_id);
@@ -145,23 +186,18 @@ router.put("/:id", requireAdmin, upload.single("image"), async (req, res) => {
   }
 });
 
-// ✅ DELETE /api/dishes/:id (admin only)
 router.delete("/:id", requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-
     const dish = await Dish.findById(id);
     if (!dish) return res.status(404).json({ message: "Dish not found" });
 
-    // ✅ delete image from cloudinary (if stored)
     await deleteFromCloudinary(dish.imagePublicId);
-
-    // ✅ delete from DB
     await Dish.findByIdAndDelete(id);
 
     res.json({ message: "Dish deleted", id });
   } catch (err) {
-    console.error("❌ delete dish:", err);
+    console.error("delete dish:", err);
     res.status(500).json({ message: "Failed to delete dish" });
   }
 });

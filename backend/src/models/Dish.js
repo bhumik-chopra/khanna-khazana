@@ -6,6 +6,12 @@ const dishSchema = new mongoose.Schema(
     description: String,
     price: { type: Number, required: true },
     category: { type: String, required: true },
+    restaurantId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Restaurant",
+      required: false,
+      default: null
+    },
 
     // ✅ Cloudinary URL
     imageUrl: { type: String, required: true },

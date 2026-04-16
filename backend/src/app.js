@@ -4,6 +4,8 @@ const cors = require("cors");
 const dishesRoutes = require("./routes/dishes.routes");
 const ordersRoutes = require("./routes/orders.routes");
 const adminRoutes = require("./routes/admin.routes");
+const restaurantsRoutes = require("./routes/restaurants.routes");
+const complaintsRoutes = require("./routes/complaints.routes");
 
 const app = express();
 app.use(express.json());
@@ -37,5 +39,7 @@ app.get("/health", (req, res) => res.json({ ok: true }));
 app.use("/api/dishes", dishesRoutes);
 app.use("/api/orders", ordersRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/restaurants", restaurantsRoutes);
+app.use("/api/complaints", complaintsRoutes);
 
 module.exports = app;

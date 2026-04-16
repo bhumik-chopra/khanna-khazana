@@ -22,6 +22,7 @@ const DishCard = ({ dish, qty, onAddToCart, onIncrease, onDecrease }) => {
   const starCount = 3;
 
   const metaItems = [
+    dish.restaurant?.name || "Kitchen partner",
     dish.prepTime || "Quick serve",
     dish.category || "Chef special"
   ].filter(Boolean);
@@ -65,6 +66,9 @@ const DishCard = ({ dish, qty, onAddToCart, onIncrease, onDecrease }) => {
                 />
 
                 {dish.isBestseller && <div className="dish-badge">Bestseller</div>}
+                {dish.restaurant?.badges?.verifiedKitchen ? (
+                  <div className="dish-safety-badge">Verified Kitchen</div>
+                ) : null}
 
                 <button
                   type="button"
