@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { Routes, Route, Navigate } from "react-router-dom";
+import Entry from "./pages/Entry";
 import AdminLogin from "./pages/AdminLogin";
 import AdminPanel from "./pages/AdminPanel";
 
@@ -53,7 +54,7 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/" element={<Entry />} />
 
       <Route path="/login" element={<AdminLogin />} />
 
@@ -66,7 +67,7 @@ export default function App() {
         }
       />
 
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

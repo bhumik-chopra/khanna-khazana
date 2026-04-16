@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useMemo, useState } from "react";
-import { useAuth, useClerk } from "@clerk/clerk-react";
+import { useAuth, useClerk, useUser } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
 import Toast from "../components/Toast";
 
@@ -18,7 +18,7 @@ const CHECKS = [
   ["refrigerationProper", "Refrigeration proper"]
 ];
 
-const emptyRestaurant = { id: "", name: "", description: "", location: "", fssaiLicenseNumber: "", fssaiExpiryDate: "", kitchenVerificationStatus: "pending", lastInspectionDate: "", nextInspectionDate: "", packagingStatus: "unchecked", staffHygieneStatus: "unchecked", foodHandlingStatus: "unchecked", remarksByAdmin: "", verifiedBy: "admin" };
+const emptyRestaurant = { id: "", name: "", description: "", location: "", gstnNumber: "", fssaiLicenseNumber: "", fssaiExpiryDate: "", kitchenVerificationStatus: "pending", lastInspectionDate: "", nextInspectionDate: "", packagingStatus: "unchecked", staffHygieneStatus: "unchecked", foodHandlingStatus: "unchecked", remarksByAdmin: "", verifiedBy: "admin" };
 const emptyDish = { name: "", description: "", price: "", image: null, prepTime: "25-35 min", tags: "", isBestseller: false, categoryMode: "existing", selectedCategory: "", newCategory: "", restaurantId: "" };
 const emptyInspection = { kitchenClean: "pass", cookingAreaClean: "pass", storageProper: "pass", staffWearingGlovesCaps: "pass", wasteDisposalProper: "pass", packagingAreaHygienic: "pass", refrigerationProper: "pass", notes: "", statusAfterInspection: "pending", inspectedBy: "admin", nextInspectionDate: "" };
 const emptyComplaintReview = { status: "in_review", resolutionNote: "", reviewedBy: "admin", triggeredReinspection: false };
@@ -30,6 +30,7 @@ export default function AdminPanel() {
   const navigate = useNavigate();
   const token = useMemo(() => localStorage.getItem("admin_token"), []);
   const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { user } = useUser();
   const { signOut } = useClerk();
   const [activeTab, setActiveTab] = useState("safety");
   const [restaurants, setRestaurants] = useState([]);
@@ -49,6 +50,7 @@ export default function AdminPanel() {
   const [editingDishId, setEditingDishId] = useState("");
   const [dishSearch, setDishSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isBootstrappingRestaurant, setIsBootstrappingRestaurant] = useState(false);
   const [toast, setToast] = useState({ open: false, type: "success", title: "", message: "" });
 
   const showToast = (type, title, message) => setToast({ open: true, type, title, message });
@@ -101,6 +103,7 @@ export default function AdminPanel() {
       name: detail.name || "",
       description: detail.description || "",
       location: detail.location || "",
+      gstnNumber: detail.gstnNumber || "",
       fssaiLicenseNumber: detail.fssaiLicenseNumber || "",
       fssaiExpiryDate: dateInput(detail.fssaiExpiryDate),
       kitchenVerificationStatus: detail.kitchenVerificationStatus || "pending",
@@ -141,6 +144,40 @@ export default function AdminPanel() {
     setAddForm((prev) => ({ ...prev, selectedCategory: prev.selectedCategory || categories[0], restaurantId: prev.restaurantId || selectedRestaurantId || restaurants[0]?.id || "" }));
     setUpdateForm((prev) => ({ ...prev, selectedCategory: prev.selectedCategory || categories[0], restaurantId: prev.restaurantId || selectedRestaurantId || restaurants[0]?.id || "" }));
   }, [categories, selectedRestaurantId, restaurants]);
+
+  useEffect(() => {
+    if (token) return;
+    if (!isLoaded || !isSignedIn || !user) return;
+    if (restaurants.length > 0) return;
+    if (isBootstrappingRestaurant) return;
+
+    const meta = user.unsafeMetadata || {};
+    const primaryEmail = user.primaryEmailAddress?.emailAddress || "";
+    const restaurantName = String(meta.restaurantName || "").trim();
+
+    if (!restaurantName) return;
+
+    setIsBootstrappingRestaurant(true);
+
+    fetchJson(`${API_BASE}/api/restaurants`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: restaurantName,
+        gstnNumber: String(meta.gstnNumber || "").trim(),
+        verifiedBy: String(meta.ownerName || primaryEmail || "restaurant_owner").trim(),
+        ownerDisplayName: String(meta.ownerName || "").trim(),
+        location: "",
+        description: ""
+      })
+      })
+      .then((data) => {
+        showToast("success", "Restaurant profile created", `${data.name} is now linked to this account.`);
+        return loadRestaurants(data.id);
+      })
+      .catch(() => {})
+      .finally(() => setIsBootstrappingRestaurant(false));
+  }, [isBootstrappingRestaurant, isLoaded, isSignedIn, restaurants.length, token, user]);
 
   const saveRestaurant = async (e) => {
     e.preventDefault();
@@ -256,9 +293,9 @@ export default function AdminPanel() {
             {activeTab === "safety" ? (
               <div className="admin-remove-shell">
                 <div className="admin-form-header"><h2>Restaurant safety profile</h2><p>Select a restaurant, update compliance fields, upload documents, and submit inspection results.</p></div>
-                <div className="admin-restaurant-list">{restaurants.map((item) => <button key={item.id} type="button" className={`admin-restaurant-card ${selectedRestaurantId === item.id ? "is-selected" : ""}`} onClick={() => setSelectedRestaurantId(item.id)}><strong>{item.name}</strong><span>{item.kitchenVerificationStatus.replaceAll("_", " ")}</span><small>Score {item.hygieneScore || 0} / 100</small></button>)}<button type="button" className="btn admin-secondary-button admin-button-full" onClick={() => { setSelectedRestaurantId(""); setRestaurantForm(emptyRestaurant); setDocuments([]); setAuditHistory([]); }}>New restaurant</button></div>
+                <div className="admin-restaurant-list">{restaurants.map((item) => <button key={item.id} type="button" className={`admin-restaurant-card ${selectedRestaurantId === item.id ? "is-selected" : ""}`} onClick={() => setSelectedRestaurantId(item.id)}><strong>{item.name}</strong><span>{item.kitchenVerificationStatus.replaceAll("_", " ")}</span><small>Score {item.hygieneScore || 0} / 100</small></button>)}{token ? <button type="button" className="btn admin-secondary-button admin-button-full" onClick={() => { setSelectedRestaurantId(""); setRestaurantForm(emptyRestaurant); setDocuments([]); setAuditHistory([]); }}>New restaurant</button> : null}</div>
                 <form onSubmit={saveRestaurant} className="admin-form admin-grid-form">
-                  {["name", "location", "fssaiLicenseNumber", "verifiedBy"].map((field) => <label key={field} className="admin-field"><span>{field}</span><input value={restaurantForm[field]} onChange={(e) => setRestaurantForm((p) => ({ ...p, [field]: e.target.value }))} /></label>)}
+                  {["name", "location", "gstnNumber", "fssaiLicenseNumber", "verifiedBy"].map((field) => <label key={field} className="admin-field"><span>{field}</span><input value={restaurantForm[field]} onChange={(e) => setRestaurantForm((p) => ({ ...p, [field]: e.target.value }))} /></label>)}
                   <label className="admin-field"><span>FSSAI expiry date</span><input type="date" value={restaurantForm.fssaiExpiryDate} onChange={(e) => setRestaurantForm((p) => ({ ...p, fssaiExpiryDate: e.target.value }))} /></label>
                   <label className="admin-field"><span>Verification status</span><select value={restaurantForm.kitchenVerificationStatus} onChange={(e) => setRestaurantForm((p) => ({ ...p, kitchenVerificationStatus: e.target.value }))}>{STATUS_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}</select></label>
                   <label className="admin-field"><span>Last inspection date</span><input type="date" value={restaurantForm.lastInspectionDate} onChange={(e) => setRestaurantForm((p) => ({ ...p, lastInspectionDate: e.target.value }))} /></label>

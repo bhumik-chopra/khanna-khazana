@@ -9,6 +9,7 @@ const restaurantSchema = new mongoose.Schema(
     ownerDisplayName: { type: String, default: "" },
     description: { type: String, default: "" },
     location: { type: String, default: "" },
+    gstnNumber: { type: String, default: "" },
     fssaiLicenseNumber: { type: String, default: "" },
     fssaiExpiryDate: { type: Date, default: null },
     kitchenVerificationStatus: {

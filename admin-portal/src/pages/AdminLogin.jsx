@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { SignIn, SignUp, SignedIn, useAuth } from "@clerk/clerk-react";
-import { useNavigate } from "react-router-dom";
+import { SignedIn, useAuth, useSignIn, useSignUp } from "@clerk/clerk-react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Toast from "../components/Toast";
 import heroWordmark from "./image.png";
 import { adminClerkEnabled } from "../clerkConfig";
@@ -9,10 +9,28 @@ const API_BASE = process.env.REACT_APP_API_BASE || "https://khanna-khazana-3.onr
 
 export default function AdminLogin() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { isSignedIn } = useAuth();
+  const { isLoaded: signInLoaded, signIn, setActive: setActiveSignIn } = useSignIn();
+  const { isLoaded: signUpLoaded, signUp, setActive } = useSignUp();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [authMode, setAuthMode] = useState("sign-in");
+  const roleMode = searchParams.get("role");
+  const [authMode, setAuthMode] = useState(roleMode === "restaurant" ? "sign-in" : "sign-in");
+  const [signInForm, setSignInForm] = useState({
+    restaurantName: "",
+    emailAddress: "",
+    password: ""
+  });
+  const [signUpStep, setSignUpStep] = useState("collect");
+  const [signUpForm, setSignUpForm] = useState({
+    restaurantName: "",
+    ownerName: "",
+    gstnNumber: "",
+    emailAddress: "",
+    password: "",
+    code: ""
+  });
   const [toast, setToast] = useState({
     open: false,
     type: "success",
@@ -27,6 +45,93 @@ export default function AdminLogin() {
       navigate("/panel");
     }
   }, [isSignedIn, navigate]);
+
+  useEffect(() => {
+    if (roleMode === "restaurant") {
+      setAuthMode("sign-in");
+    }
+  }, [roleMode]);
+
+  const updateSignUpField = (field, value) => {
+    setSignUpForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const updateSignInField = (field, value) => {
+    setSignInForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const submitRestaurantLogin = async (e) => {
+    e.preventDefault();
+    if (!signInLoaded) return;
+
+    try {
+      const result = await signIn.create({
+        identifier: signInForm.emailAddress,
+        password: signInForm.password
+      });
+
+      if (result.status !== "complete") {
+        showToast("error", "Login failed", "Could not complete restaurant login.");
+        return;
+      }
+
+      await setActiveSignIn({ session: result.createdSessionId });
+      showToast("success", "Logged in", "Welcome back to your restaurant control panel.");
+      navigate("/panel");
+    } catch (err) {
+      const message = err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err.message || "Login failed";
+      showToast("error", "Login failed", message);
+    }
+  };
+
+  const submitRestaurantSignUp = async (e) => {
+    e.preventDefault();
+
+    if (!signUpLoaded) return;
+
+    try {
+      await signUp.create({
+        emailAddress: signUpForm.emailAddress,
+        password: signUpForm.password,
+        unsafeMetadata: {
+          restaurantName: signUpForm.restaurantName,
+          ownerName: signUpForm.ownerName,
+          gstnNumber: signUpForm.gstnNumber,
+          role: "restaurant_owner"
+        }
+      });
+
+      await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+      setSignUpStep("verify");
+      showToast("success", "Verification sent", "Check your email for the verification code.");
+    } catch (err) {
+      const message = err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err.message || "Sign up failed";
+      showToast("error", "Sign up failed", message);
+    }
+  };
+
+  const verifyRestaurantSignUp = async (e) => {
+    e.preventDefault();
+    if (!signUpLoaded) return;
+
+    try {
+      const result = await signUp.attemptEmailAddressVerification({
+        code: signUpForm.code
+      });
+
+      if (result.status !== "complete") {
+        showToast("error", "Verification incomplete", "Please enter the correct email code.");
+        return;
+      }
+
+      await setActive({ session: result.createdSessionId });
+      showToast("success", "Email verified", "Restaurant account created successfully.");
+      navigate("/panel");
+    } catch (err) {
+      const message = err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err.message || "Verification failed";
+      showToast("error", "Verification failed", message);
+    }
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -62,6 +167,9 @@ export default function AdminLogin() {
       <div className="container admin-login-layout">
         <section className="admin-login-copy">
           <div className="admin-badge">Khanna Khazana Control Deck</div>
+          <Link to="/" className="admin-entry-back">
+            Back to entry
+          </Link>
           <img
             src={heroWordmark}
             alt="Khanna Khazana admin portal"
@@ -89,7 +197,7 @@ export default function AdminLogin() {
           <h2>Sign in to the panel</h2>
           <p>Restaurants can create an account here and manage their own dishes inside the shared Khanna Khazana marketplace.</p>
 
-          {adminClerkEnabled ? (
+          {adminClerkEnabled && roleMode !== "admin" ? (
             <div className="admin-auth-stack">
               <div className="admin-auth-toggle">
                 <button type="button" className={`admin-auth-chip ${authMode === "sign-in" ? "is-active" : ""}`} onClick={() => setAuthMode("sign-in")}>
@@ -106,9 +214,63 @@ export default function AdminLogin() {
 
               {!isSignedIn ? (
                 authMode === "sign-in" ? (
-                  <SignIn appearance={{ elements: { rootBox: "admin-clerk-root" } }} />
+                  <form onSubmit={submitRestaurantLogin} className="admin-form">
+                    <label className="admin-field">
+                      <span>Restaurant name</span>
+                      <input value={signInForm.restaurantName} onChange={(e) => updateSignInField("restaurantName", e.target.value)} />
+                    </label>
+                    <label className="admin-field">
+                      <span>Email</span>
+                      <input type="email" value={signInForm.emailAddress} onChange={(e) => updateSignInField("emailAddress", e.target.value)} />
+                    </label>
+                    <label className="admin-field">
+                      <span>Password</span>
+                      <input type="password" value={signInForm.password} onChange={(e) => updateSignInField("password", e.target.value)} />
+                    </label>
+                    <button className="btn btn-primary admin-button-full">Login to your restaurant panel</button>
+                  </form>
                 ) : (
-                  <SignUp appearance={{ elements: { rootBox: "admin-clerk-root" } }} />
+                  <div className="admin-signup-shell">
+                    {signUpStep === "collect" ? (
+                      <form onSubmit={submitRestaurantSignUp} className="admin-form">
+                        <label className="admin-field">
+                          <span>Restaurant name</span>
+                          <input value={signUpForm.restaurantName} onChange={(e) => updateSignUpField("restaurantName", e.target.value)} />
+                        </label>
+                        <label className="admin-field">
+                          <span>Owner name</span>
+                          <input value={signUpForm.ownerName} onChange={(e) => updateSignUpField("ownerName", e.target.value)} />
+                        </label>
+                        <label className="admin-field">
+                          <span>GSTN number</span>
+                          <input value={signUpForm.gstnNumber} onChange={(e) => updateSignUpField("gstnNumber", e.target.value)} />
+                        </label>
+                        <label className="admin-field">
+                          <span>Email</span>
+                          <input type="email" value={signUpForm.emailAddress} onChange={(e) => updateSignUpField("emailAddress", e.target.value)} />
+                        </label>
+                        <label className="admin-field">
+                          <span>Password</span>
+                          <input type="password" value={signUpForm.password} onChange={(e) => updateSignUpField("password", e.target.value)} />
+                        </label>
+                        <button className="btn btn-primary admin-button-full">Create restaurant account</button>
+                      </form>
+                    ) : (
+                      <form onSubmit={verifyRestaurantSignUp} className="admin-form">
+                        <div className="admin-auth-signedin">
+                          We sent a verification code to <strong>{signUpForm.emailAddress}</strong>.
+                        </div>
+                        <label className="admin-field">
+                          <span>Email verification code</span>
+                          <input value={signUpForm.code} onChange={(e) => updateSignUpField("code", e.target.value)} />
+                        </label>
+                        <button className="btn btn-primary admin-button-full">Verify email and continue</button>
+                        <button type="button" className="btn admin-secondary-button" onClick={() => setSignUpStep("collect")}>
+                          Back
+                        </button>
+                      </form>
+                    )}
+                  </div>
                 )
               ) : null}
             </div>
