@@ -5,22 +5,19 @@ const Hero = ({ onOrderClick }) => {
     <section className="section hero-section">
       <div className="container hero-grid">
         <div className="hero-copy">
-          <span className="badge badge-glass">Authentic Indian food, delivered at light speed</span>
-
           <h1 className="hero-title">
-            Futuristic flavour systems for every
-            <span> orange-hot craving.</span>
+            Crave-worthy food.
+            <span> Verified kitchens. Zero guesswork.</span>
           </h1>
 
           <p className="hero-text">
-            Khanna Khazana blends indulgent Indian comfort food with a polished delivery
-            experience, rich motion, glowing highlights, and menu discovery that feels alive.
+            Khana Khazana shows you what other apps don't - real kitchen safety, hygiene
+            checks, and trusted partners - so you know exactly where your food comes from.
           </p>
 
           <div className="hero-actions">
             <button className="btn btn-primary" onClick={onOrderClick}>
-              Launch order flow
-              <span>+</span>
+              Start your order
             </button>
             <button
               className="btn btn-outline"
@@ -29,8 +26,19 @@ const Hero = ({ onOrderClick }) => {
                 if (el) el.scrollIntoView({ behavior: "smooth" });
               }}
             >
-              Browse menu grid
+              Browse menu
             </button>
+          </div>
+
+          <div className="hero-trust-row">
+            <div className="hero-trust-chip">
+              <strong>Verified Kitchens</strong>
+              <span>Trusted restaurant partners</span>
+            </div>
+            <div className="hero-trust-chip">
+              <strong>Hygiene Checked</strong>
+              <span>Cleaner prep and compliance visibility</span>
+            </div>
           </div>
 
           <div className="hero-stats">
@@ -52,6 +60,12 @@ const Hero = ({ onOrderClick }) => {
         <div className="hero-visual">
           <div className="hero-orbit hero-orbit-one" />
           <div className="hero-orbit hero-orbit-two" />
+          <div className="hero-floating-chip hero-floating-chip-top">
+            <span className="hero-floating-chip-icon" aria-hidden="true">
+              ✅
+            </span>
+            <span>Verified Kitchen</span>
+          </div>
 
           <div className="hero-image-shell">
             <img
@@ -59,25 +73,31 @@ const Hero = ({ onOrderClick }) => {
               alt="Indian food spread"
               className="hero-image"
             />
+            <div className="hero-floating-chip hero-floating-chip-bottom">
+              <span className="hero-floating-chip-icon" aria-hidden="true">
+                🧼
+              </span>
+              <span>Hygiene Checked</span>
+            </div>
           </div>
 
           <div className="hero-panel-grid">
             <div className="hero-panel-card hero-panel-card-orange">
               <span className="hero-panel-kicker">Hot route</span>
               <strong>Live order tracker</strong>
-              <p>From pan heat to doorstep glow with real-time delivery telemetry.</p>
+              <p>Follow every order from active kitchen prep to final doorstep handoff.</p>
             </div>
             <div className="hero-panel-card hero-panel-card-green">
               <span className="hero-panel-kicker">Kitchen sync</span>
-              <strong>Separate veg and non-veg prep lanes</strong>
-              <p>Built for trust, speed, and flavour integrity across every order.</p>
+              <strong>Trusted partner kitchens</strong>
+              <p>Built for taste consistency, cleaner prep flow, and dependable quality.</p>
             </div>
           </div>
 
           <div className="hero-banner">
             <div>
               <span className="hero-banner-chip">Chef-curated</span>
-              <strong>Menus tuned weekly for comfort, crunch, and spice.</strong>
+              <strong>Menus tuned weekly for comfort, crunch, and signature spice.</strong>
             </div>
             <span className="hero-banner-offer">Free delivery on your first 3 orders</span>
           </div>

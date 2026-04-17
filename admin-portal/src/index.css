@@ -616,6 +616,28 @@ select {
   width: 100%;
 }
 
+.btn.is-loading,
+.btn:disabled {
+  cursor: wait;
+  opacity: 0.9;
+}
+
+.btn.is-loading {
+  position: relative;
+  box-shadow: 0 18px 34px rgba(255, 122, 26, 0.22);
+}
+
+.btn.is-loading::after {
+  content: "";
+  width: 0.95rem;
+  height: 0.95rem;
+  margin-left: 0.55rem;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.42);
+  border-top-color: rgba(255, 255, 255, 1);
+  animation: adminButtonSpin 0.8s linear infinite;
+}
+
 .admin-panel-shell {
   display: grid;
   gap: 1.2rem;
@@ -943,5 +965,11 @@ select {
   }
   50% {
     transform: translate3d(0, calc(var(--food-scroll-y) + 14px), 0);
+  }
+}
+
+@keyframes adminButtonSpin {
+  to {
+    transform: rotate(360deg);
   }
 }

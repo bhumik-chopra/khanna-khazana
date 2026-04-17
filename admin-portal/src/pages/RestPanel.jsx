@@ -97,7 +97,6 @@ export default function RestPanel() {
   const [restaurants, setRestaurants] = useState([]);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState("");
   const [restaurantForm, setRestaurantForm] = useState(emptyRestaurant);
-  const [documents, setDocuments] = useState([]);
   const [verificationFiles, setVerificationFiles] = useState(emptyVerificationFiles);
   const [complaints, setComplaints] = useState([]);
   const [selectedComplaintId, setSelectedComplaintId] = useState("");
@@ -110,6 +109,7 @@ export default function RestPanel() {
   const [dishSearch, setDishSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isBootstrappingRestaurant, setIsBootstrappingRestaurant] = useState(false);
+  const [isSubmittingVerification, setIsSubmittingVerification] = useState(false);
   const [toast, setToast] = useState({ open: false, type: "success", title: "", message: "" });
 
   const showToast = (type, title, message) => setToast({ open: true, type, title, message });
@@ -164,7 +164,6 @@ export default function RestPanel() {
   const loadRestaurantDetails = async (restaurantId) => {
     if (!restaurantId) return;
     const detail = await fetchJson(`${API_BASE}/api/restaurants/${restaurantId}`);
-    setDocuments(detail.documents || []);
     setRestaurantForm({
       id: detail.id || "",
       name: detail.name || "",
@@ -260,6 +259,7 @@ export default function RestPanel() {
 
   const saveRestaurant = async (e) => {
     e.preventDefault();
+    if (isSubmittingVerification) return;
 
     if (!restaurantForm.name.trim() && selectedVerificationSection !== "basic_business") {
       showToast("error", "Basic details first", "Please submit basic business details first.");
@@ -271,6 +271,7 @@ export default function RestPanel() {
       return;
     }
     try {
+      setIsSubmittingVerification(true);
       const data = await fetchJson(`${API_BASE}/api/restaurants`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -286,7 +287,11 @@ export default function RestPanel() {
       await loadRestaurants(data.id);
       await loadRestaurantDetails(data.id);
       await loadDishes();
-    } catch (err) { showToast("error", "Save failed", err.message); }
+    } catch (err) {
+      showToast("error", "Save failed", err.message);
+    } finally {
+      setIsSubmittingVerification(false);
+    }
   };
 
   const uploadVerificationDocuments = async (restaurantId, sectionId) => {
@@ -439,7 +444,9 @@ export default function RestPanel() {
                   {selectedVerificationSection === "self_declaration" ? <>
                     <label className="admin-checkbox"><input type="checkbox" checked={restaurantForm.selfDeclarationAccepted} onChange={(e) => setRestaurantForm((p) => ({ ...p, selfDeclarationAccepted: e.target.checked }))} /><span>I confirm that all provided information is true and the kitchen follows food safety standards.</span></label>
                   </> : null}
-                  <button className="btn btn-primary admin-button-full">Submit {VERIFICATION_SECTIONS.find((section) => section.id === selectedVerificationSection)?.label}</button>
+                  <button className={`btn btn-primary admin-button-full ${isSubmittingVerification ? "is-loading" : ""}`} disabled={isSubmittingVerification}>
+                    {isSubmittingVerification ? "Sending details..." : `Submit ${VERIFICATION_SECTIONS.find((section) => section.id === selectedVerificationSection)?.label}`}
+                  </button>
                 </form>
               </div>
             ) : null}

@@ -1,5 +1,5 @@
 import "./App.css";
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { Routes, Route } from "react-router-dom";
 
@@ -89,34 +89,61 @@ function useFoodBackgroundMotion() {
 
 function FloatingDock({ onCartClick, cartCount }) {
   const [visible, setVisible] = useState(true);
-  const [lastScroll, setLastScroll] = useState(0);
+  const lastScrollRef = useRef(0);
+  const upwardRevealDistanceRef = useRef(0);
+  const rafRef = useRef(null);
+  const visibleRef = useRef(true);
 
   useEffect(() => {
-    let ticking = false;
+    visibleRef.current = visible;
+  }, [visible]);
+
+  useEffect(() => {
+    lastScrollRef.current = window.scrollY;
+    upwardRevealDistanceRef.current = 0;
 
     const handleScroll = () => {
-      if (ticking) return;
+      if (rafRef.current !== null) return;
 
-      ticking = true;
-      window.requestAnimationFrame(() => {
+      rafRef.current = window.requestAnimationFrame(() => {
         const current = window.scrollY;
+        const last = lastScrollRef.current;
+        const delta = current - last;
+        const scrollTolerance = 6;
 
-        if (current < 80) {
+        if (current < 120) {
           setVisible(true);
-        } else if (current > lastScroll) {
-          setVisible(false);
+          upwardRevealDistanceRef.current = 0;
+        } else if (delta > scrollTolerance) {
+          if (visibleRef.current) {
+            setVisible(false);
+          }
+          upwardRevealDistanceRef.current = 0;
+        } else if (delta < -scrollTolerance) {
+          upwardRevealDistanceRef.current += Math.abs(delta);
+
+          if (upwardRevealDistanceRef.current > 220) {
+            setVisible(true);
+            upwardRevealDistanceRef.current = 0;
+          }
         } else {
-          setVisible(true);
+          upwardRevealDistanceRef.current = Math.max(0, upwardRevealDistanceRef.current - 2);
         }
 
-        setLastScroll(current);
-        ticking = false;
+        lastScrollRef.current = current;
+        rafRef.current = null;
       });
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [lastScroll]);
+
+    return () => {
+      if (rafRef.current !== null) {
+        window.cancelAnimationFrame(rafRef.current);
+      }
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
 
   const items = [
     {
