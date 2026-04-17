@@ -26,7 +26,7 @@ const emptyComplaintReview = { status: "in_review", resolutionNote: "", reviewed
 const dateInput = (v) => (v ? String(v).slice(0, 10) : "");
 const tagsToInput = (tags) => (Array.isArray(tags) ? tags.join(", ") : typeof tags === "string" ? tags : "");
 
-export default function AdminPanel() {
+export default function RestPanel() {
   const navigate = useNavigate();
   const token = useMemo(() => localStorage.getItem("admin_token"), []);
   const { getToken, isLoaded, isSignedIn } = useAuth();

@@ -2,8 +2,8 @@ import { useEffect } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Entry from "./pages/Entry";
-import AdminLogin from "./pages/AdminLogin";
-import AdminPanel from "./pages/AdminPanel";
+import RestLogin from "./pages/RestLogin";
+import RestPanel from "./pages/RestPanel";
 
 function useFoodBackgroundMotion() {
   useEffect(() => {
@@ -56,13 +56,13 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Entry />} />
 
-      <Route path="/login" element={<AdminLogin />} />
+      <Route path="/login" element={<RestLogin />} />
 
       <Route
         path="/panel"
         element={
           <RequireAuth>
-            <AdminPanel />
+            <RestPanel />
           </RequireAuth>
         }
       />

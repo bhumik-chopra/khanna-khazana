@@ -7,7 +7,15 @@ import { adminClerkEnabled } from "../clerkConfig";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "https://khanna-khazana-3.onrender.com";
 
-export default function AdminLogin() {
+function toRestaurantUsername(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+export default function RestLogin() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { isSignedIn } = useAuth();
@@ -19,7 +27,6 @@ export default function AdminLogin() {
   const [authMode, setAuthMode] = useState(roleMode === "restaurant" ? "sign-in" : "sign-in");
   const [signInForm, setSignInForm] = useState({
     restaurantName: "",
-    emailAddress: "",
     password: ""
   });
   const [signUpStep, setSignUpStep] = useState("collect");
@@ -65,8 +72,9 @@ export default function AdminLogin() {
     if (!signInLoaded) return;
 
     try {
+      const username = toRestaurantUsername(signInForm.restaurantName);
       const result = await signIn.create({
-        identifier: signInForm.emailAddress,
+        identifier: username,
         password: signInForm.password
       });
 
@@ -91,6 +99,7 @@ export default function AdminLogin() {
 
     try {
       await signUp.create({
+        username: toRestaurantUsername(signUpForm.restaurantName),
         emailAddress: signUpForm.emailAddress,
         password: signUpForm.password,
         unsafeMetadata: {
@@ -216,12 +225,8 @@ export default function AdminLogin() {
                 authMode === "sign-in" ? (
                   <form onSubmit={submitRestaurantLogin} className="admin-form">
                     <label className="admin-field">
-                      <span>Restaurant name</span>
+                      <span>Restaurant name / username</span>
                       <input value={signInForm.restaurantName} onChange={(e) => updateSignInField("restaurantName", e.target.value)} />
-                    </label>
-                    <label className="admin-field">
-                      <span>Email</span>
-                      <input type="email" value={signInForm.emailAddress} onChange={(e) => updateSignInField("emailAddress", e.target.value)} />
                     </label>
                     <label className="admin-field">
                       <span>Password</span>
@@ -259,6 +264,9 @@ export default function AdminLogin() {
                       <form onSubmit={verifyRestaurantSignUp} className="admin-form">
                         <div className="admin-auth-signedin">
                           We sent a verification code to <strong>{signUpForm.emailAddress}</strong>.
+                        </div>
+                        <div className="admin-auth-signedin">
+                          Your sign-in username will be <strong>{toRestaurantUsername(signUpForm.restaurantName)}</strong>.
                         </div>
                         <label className="admin-field">
                           <span>Email verification code</span>
