@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Space+Grotesk:wght@500;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;700;800&family=Space+Grotesk:wght@500;700&display=swap");
 
 :root {
   --orange: #ff7a1a;
@@ -130,6 +130,7 @@ select {
 
 .admin-entry-page {
   overflow: hidden;
+  font-family: "Inter", sans-serif;
 }
 
 .admin-entry-minimal {
@@ -153,7 +154,8 @@ select {
 
 .admin-entry-header h1 {
   margin: 0;
-  font-family: "Space Grotesk", sans-serif;
+  font-family: "Inter", sans-serif;
+  font-weight: 800;
   font-size: clamp(2rem, 4.4vw, 3.5rem);
   line-height: 1;
   letter-spacing: -0.05em;
@@ -238,8 +240,8 @@ select {
 .admin-entry-box strong {
   position: relative;
   z-index: 1;
-  font-family: "Space Grotesk", sans-serif;
-  font-weight: 700;
+  font-family: "Inter", sans-serif;
+  font-weight: 800;
   text-transform: lowercase;
   line-height: 0.95;
   letter-spacing: -0.04em;
@@ -386,6 +388,13 @@ select {
   justify-content: center;
 }
 
+.admin-login-shell {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .admin-login-copy,
 .admin-login-card,
 .admin-panel-header,
@@ -484,6 +493,15 @@ select {
   display: flex;
   flex-direction: column;
   justify-content: center;
+}
+
+.admin-login-card-platform {
+  width: min(100%, 760px);
+  padding: 2rem;
+}
+
+.admin-form-platform {
+  margin-top: 1rem;
 }
 
 .admin-card-kicker {

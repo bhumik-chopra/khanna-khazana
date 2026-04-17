@@ -55,11 +55,12 @@ export default function RestPanel() {
 
   const showToast = (type, title, message) => setToast({ open: true, type, title, message });
   const logout = async () => {
+    const localToken = localStorage.getItem("admin_token");
     localStorage.removeItem("admin_token");
     if (isSignedIn) {
       await signOut();
     }
-    navigate("/login");
+    navigate(localToken ? "/admin-login" : "/login");
   };
   const selectedRestaurant = restaurants.find((item) => item.id === selectedRestaurantId) || null;
 

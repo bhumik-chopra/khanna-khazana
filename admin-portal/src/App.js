@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { Routes, Route, Navigate } from "react-router-dom";
+import AdminLogin from "./pages/AdminLogin";
 import Entry from "./pages/Entry";
 import RestLogin from "./pages/RestLogin";
 import RestPanel from "./pages/RestPanel";
@@ -45,7 +46,7 @@ function RequireAuth({ children }) {
   const { isLoaded, isSignedIn } = useAuth();
   const token = localStorage.getItem("admin_token");
   if (!isLoaded && !token) return null;
-  if (!token && !isSignedIn) return <Navigate to="/login" replace />;
+  if (!token && !isSignedIn) return <Navigate to="/" replace />;
   return children;
 }
 
@@ -56,6 +57,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Entry />} />
 
+      <Route path="/admin-login" element={<AdminLogin />} />
       <Route path="/login" element={<RestLogin />} />
 
       <Route

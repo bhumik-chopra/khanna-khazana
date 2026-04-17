@@ -23,7 +23,7 @@ export default function Entry() {
         </header>
 
         <Link
-          to="/login?role=admin"
+          to="/admin-login"
           className="admin-entry-box admin-entry-box-admin admin-entry-target"
         >
           <div className="admin-entry-icon" aria-hidden="true">

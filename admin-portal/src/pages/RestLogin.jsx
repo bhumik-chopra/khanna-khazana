@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { SignedIn, useAuth, useSignIn, useSignUp } from "@clerk/clerk-react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Toast from "../components/Toast";
 import heroWordmark from "./image.png";
 import { adminClerkEnabled } from "../clerkConfig";
-
-const API_BASE = process.env.REACT_APP_API_BASE || "https://khanna-khazana-3.onrender.com";
 
 function toRestaurantUsername(value) {
   return String(value || "")
@@ -17,14 +15,10 @@ function toRestaurantUsername(value) {
 
 export default function RestLogin() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const { isSignedIn } = useAuth();
   const { isLoaded: signInLoaded, signIn, setActive: setActiveSignIn } = useSignIn();
   const { isLoaded: signUpLoaded, signUp, setActive } = useSignUp();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const roleMode = searchParams.get("role");
-  const [authMode, setAuthMode] = useState(roleMode === "restaurant" ? "sign-in" : "sign-in");
+  const [authMode, setAuthMode] = useState("sign-in");
   const [signInForm, setSignInForm] = useState({
     restaurantName: "",
     password: ""
@@ -48,16 +42,10 @@ export default function RestLogin() {
   const showToast = (type, title, message) => setToast({ open: true, type, title, message });
 
   useEffect(() => {
-    if (isSignedIn || localStorage.getItem("admin_token")) {
+    if (isSignedIn) {
       navigate("/panel");
     }
   }, [isSignedIn, navigate]);
-
-  useEffect(() => {
-    if (roleMode === "restaurant") {
-      setAuthMode("sign-in");
-    }
-  }, [roleMode]);
 
   const updateSignUpField = (field, value) => {
     setSignUpForm((prev) => ({ ...prev, [field]: value }));
@@ -142,32 +130,6 @@ export default function RestLogin() {
     }
   };
 
-  const submit = async (e) => {
-    e.preventDefault();
-
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        showToast("error", "Login failed", data?.message || "Invalid credentials");
-        return;
-      }
-
-      localStorage.setItem("admin_token", data.token);
-      showToast("success", "Logged in", "Welcome back to the control deck.");
-      setTimeout(() => navigate("/panel"), 250);
-    } catch (err) {
-      console.error(err);
-      showToast("error", "Network error", "Backend not reachable");
-    }
-  };
-
   return (
     <div className="admin-login-page">
       <div className="admin-login-bg admin-login-bg-left" />
@@ -206,7 +168,7 @@ export default function RestLogin() {
           <h2>Sign in to the panel</h2>
           <p>Restaurants can create an account here and manage their own dishes inside the shared Khanna Khazana marketplace.</p>
 
-          {adminClerkEnabled && roleMode !== "admin" ? (
+          {adminClerkEnabled ? (
             <div className="admin-auth-stack">
               <div className="admin-auth-toggle">
                 <button type="button" className={`admin-auth-chip ${authMode === "sign-in" ? "is-active" : ""}`} onClick={() => setAuthMode("sign-in")}>
@@ -283,26 +245,6 @@ export default function RestLogin() {
               ) : null}
             </div>
           ) : null}
-
-          <div className="admin-auth-divider">Platform admin login</div>
-
-          <form onSubmit={submit} className="admin-form">
-            <label className="admin-field">
-              <span>Username</span>
-              <input placeholder="Enter username" value={username} onChange={(e) => setUsername(e.target.value)} />
-            </label>
-
-            <label className="admin-field">
-              <span>Password</span>
-              <input placeholder="Enter password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-            </label>
-
-            <button className="btn btn-primary admin-button-full">Enter control deck</button>
-
-            <button type="button" className="btn admin-secondary-button" onClick={() => window.open("https://khanna-khazana-4.onrender.com", "_blank", "noopener,noreferrer")}>
-              Open delivery portal
-            </button>
-          </form>
         </section>
       </div>
 
