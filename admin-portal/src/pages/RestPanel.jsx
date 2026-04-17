@@ -381,7 +381,6 @@ export default function RestPanel() {
             {activeTab === "safety" ? (
               <div className="admin-remove-shell">
                 <div className="admin-form-header"><h2>Restaurant verification submission</h2><p>Submit only the required restaurant verification details, compliance proof, and kitchen safety uploads.</p></div>
-                <div className="admin-restaurant-list">{restaurants.map((item) => <button key={item.id} type="button" className={`admin-restaurant-card ${selectedRestaurantId === item.id ? "is-selected" : ""}`} onClick={() => setSelectedRestaurantId(item.id)}><strong>{item.name}</strong><span>{item.kitchenVerificationStatus.replaceAll("_", " ")}</span><small>Score {item.hygieneScore || 0} / 100</small></button>)}</div>
                 <div className="admin-form admin-grid-form">
                   <div className="admin-form-header">
                     <h2>Choose submission heading</h2>
@@ -442,8 +441,6 @@ export default function RestPanel() {
                   </> : null}
                   <button className="btn btn-primary admin-button-full">Submit {VERIFICATION_SECTIONS.find((section) => section.id === selectedVerificationSection)?.label}</button>
                 </form>
-                {selectedRestaurant ? <div className="admin-score-strip"><div className="admin-score-card"><span>Score</span><strong>{selectedRestaurant.hygieneScore || 0}</strong><small>{selectedRestaurant.scoreBand || "poor"}</small></div><div className="admin-score-card"><span>Status</span><strong>{selectedRestaurant.kitchenVerificationStatus.replaceAll("_", " ")}</strong><small>{selectedRestaurant.documentCount || 0} documents</small></div><div className="admin-score-card"><span>Open complaints</span><strong>{selectedRestaurant.openComplaintCount || 0}</strong><small>{selectedRestaurant.badges?.recentlyAudited ? "Recently audited" : "Audit due"}</small></div></div> : null}
-                <div className="admin-document-list">{documents.length ? documents.map((doc) => <a key={doc.id} className="admin-document-card" href={doc.fileUrl} target="_blank" rel="noreferrer"><strong>{doc.label || doc.type}</strong><span>{doc.type.replaceAll("_", " ")}</span><small>{new Date(doc.createdAt).toLocaleDateString()}</small></a>) : <div className="admin-empty-state">No compliance documents yet.</div>}</div>
               </div>
             ) : null}
             {activeTab === "complaints" ? (

@@ -13,6 +13,13 @@ function toRestaurantUsername(value) {
     .replace(/^-+|-+$/g, "");
 }
 
+function toRestaurantIdentifier(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "";
+  if (normalized.includes("@")) return normalized.toLowerCase();
+  return toRestaurantUsername(normalized);
+}
+
 export default function RestLogin() {
   const navigate = useNavigate();
   const { isSignedIn } = useAuth();
@@ -60,9 +67,9 @@ export default function RestLogin() {
     if (!signInLoaded) return;
 
     try {
-      const username = toRestaurantUsername(signInForm.restaurantName);
+      const identifier = toRestaurantIdentifier(signInForm.restaurantName);
       const result = await signIn.create({
-        identifier: username,
+        identifier,
         password: signInForm.password
       });
 
@@ -187,8 +194,8 @@ export default function RestLogin() {
                 authMode === "sign-in" ? (
                   <form onSubmit={submitRestaurantLogin} className="admin-form">
                     <label className="admin-field">
-                      <span>Restaurant name / username</span>
-                      <input value={signInForm.restaurantName} onChange={(e) => updateSignInField("restaurantName", e.target.value)} />
+                      <span>Restaurant username or email</span>
+                      <input placeholder="Enter username or email" value={signInForm.restaurantName} onChange={(e) => updateSignInField("restaurantName", e.target.value)} />
                     </label>
                     <label className="admin-field">
                       <span>Password</span>
