@@ -10,8 +10,15 @@ const CHECKLIST_WEIGHTS = {
 
 const DOCUMENT_WEIGHTS = {
   fssai_certificate: 8,
-  inspection_report: 3,
+  kitchen_cooking_area_photo: 2,
+  kitchen_preparation_area_photo: 2,
+  kitchen_storage_area_photo: 2,
+  kitchen_utensils_cleaning_area_photo: 2,
+  storage_fridge_photo: 2,
+  packaging_photo: 2,
   pest_control_proof: 2,
+  staff_hygiene_photo: 1,
+  inspection_report: 3,
   staff_hygiene_proof: 2,
   kitchen_photo: 1,
   compliance_document: 4
@@ -64,9 +71,11 @@ function computeDocumentScore(documents = [], fssaiExpiryDate) {
 
 function computeOperationalScore(restaurant = {}) {
   const profileScore =
-    QUALITY_TO_POINTS[restaurant.packagingStatus || "unchecked"] * 5 +
-    QUALITY_TO_POINTS[restaurant.staffHygieneStatus || "unchecked"] * 5 +
-    QUALITY_TO_POINTS[restaurant.foodHandlingStatus || "unchecked"] * 4;
+    (restaurant.staffUsesProtectiveGear ? 1 : QUALITY_TO_POINTS[restaurant.staffHygieneStatus || "unchecked"]) * 5 +
+    (restaurant.rawAndCookedStoredSeparately ? 1 : 0) * 4 +
+    (restaurant.temperatureMaintainedProperly ? 1 : QUALITY_TO_POINTS[restaurant.foodHandlingStatus || "unchecked"]) * 4 +
+    (restaurant.sealedPackaging ? 1 : QUALITY_TO_POINTS[restaurant.packagingStatus || "unchecked"]) * 3 +
+    (restaurant.cleanWaterUsedForCooking ? 1 : 0) * 2;
 
   const verificationBonus = restaurant.kitchenVerificationStatus === "verified" ? 6 : 0;
 

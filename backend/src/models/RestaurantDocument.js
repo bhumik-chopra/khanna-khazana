@@ -12,9 +12,16 @@ const restaurantDocumentSchema = new mongoose.Schema(
       type: String,
       enum: [
         "fssai_certificate",
+        "kitchen_cooking_area_photo",
+        "kitchen_preparation_area_photo",
+        "kitchen_storage_area_photo",
+        "kitchen_utensils_cleaning_area_photo",
+        "staff_hygiene_photo",
+        "storage_fridge_photo",
+        "packaging_photo",
+        "pest_control_proof",
         "kitchen_photo",
         "inspection_report",
-        "pest_control_proof",
         "staff_hygiene_proof",
         "compliance_document"
       ],

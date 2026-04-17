@@ -20,6 +20,15 @@ const { calculateRestaurantSafety } = require("../utils/restaurantSafety");
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
+function parseBoolean(value) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    return normalized === "true" || normalized === "yes" || normalized === "on";
+  }
+  return false;
+}
+
 function uploadToCloudinary(buffer, folder = "khanna-khazana/compliance") {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
@@ -118,11 +127,24 @@ router.post("/", requireDashboardUser, async (req, res) => {
     const {
       id,
       name,
+      ownerName,
+      contactNumber,
+      restaurantAddress,
       description,
       location,
       gstnNumber,
       fssaiLicenseNumber,
       fssaiExpiryDate,
+      staffUsesProtectiveGear,
+      rawAndCookedStoredSeparately,
+      temperatureMaintainedProperly,
+      packagingType,
+      sealedPackaging,
+      lastPestControlDate,
+      wasteDisposalMethod,
+      waterSource,
+      cleanWaterUsedForCooking,
+      selfDeclarationAccepted,
       kitchenVerificationStatus,
       lastInspectionDate,
       nextInspectionDate,
@@ -150,21 +172,43 @@ router.post("/", requireDashboardUser, async (req, res) => {
     }
 
     const previous = existing ? existing.toObject() : null;
+    const staffUsesProtection = parseBoolean(staffUsesProtectiveGear);
+    const storesFoodSeparately = parseBoolean(rawAndCookedStoredSeparately);
+    const maintainsTemperature = parseBoolean(temperatureMaintainedProperly);
+    const usesSealedPackaging = parseBoolean(sealedPackaging);
+    const usesCleanWater = parseBoolean(cleanWaterUsedForCooking);
+    const acceptedDeclaration = parseBoolean(selfDeclarationAccepted);
 
     const payload = {
       name: String(name).trim(),
       slug: slugify(name),
+      ownerName: String(ownerName || "").trim(),
+      contactNumber: String(contactNumber || "").trim(),
+      restaurantAddress: String(restaurantAddress || location || "").trim(),
       description: String(description || "").trim(),
-      location: String(location || "").trim(),
+      location: String(restaurantAddress || location || "").trim(),
       gstnNumber: String(gstnNumber || "").trim(),
       fssaiLicenseNumber: String(fssaiLicenseNumber || "").trim(),
       fssaiExpiryDate: fssaiExpiryDate || null,
+      staffUsesProtectiveGear: staffUsesProtection,
+      rawAndCookedStoredSeparately: storesFoodSeparately,
+      temperatureMaintainedProperly: maintainsTemperature,
+      packagingType: String(packagingType || "").trim(),
+      sealedPackaging: usesSealedPackaging,
+      lastPestControlDate: lastPestControlDate || null,
+      wasteDisposalMethod: String(wasteDisposalMethod || "").trim(),
+      waterSource: ["RO", "Filtered", "Municipal"].includes(waterSource) ? waterSource : "",
+      cleanWaterUsedForCooking: usesCleanWater,
+      selfDeclarationAccepted: acceptedDeclaration,
       kitchenVerificationStatus: kitchenVerificationStatus || "pending",
       lastInspectionDate: lastInspectionDate || null,
       nextInspectionDate: nextInspectionDate || null,
-      packagingStatus: packagingStatus || "unchecked",
-      staffHygieneStatus: staffHygieneStatus || "unchecked",
-      foodHandlingStatus: foodHandlingStatus || "unchecked",
+      packagingStatus:
+        packagingStatus || (usesSealedPackaging ? "good" : "poor"),
+      staffHygieneStatus:
+        staffHygieneStatus || (staffUsesProtection ? "good" : "poor"),
+      foodHandlingStatus:
+        foodHandlingStatus || (storesFoodSeparately && maintainsTemperature ? "good" : "poor"),
       remarksByAdmin: String(remarksByAdmin || "").trim(),
       verifiedBy: String(verifiedBy || "admin").trim(),
       ownerClerkUserId: req.auth.isPlatformAdmin
@@ -173,7 +217,7 @@ router.post("/", requireDashboardUser, async (req, res) => {
       ownerEmail: req.auth.isPlatformAdmin ? existing?.ownerEmail || "" : req.auth.email || "",
       ownerDisplayName: req.auth.isPlatformAdmin
         ? existing?.ownerDisplayName || ""
-        : String(req.body.ownerDisplayName || req.auth.email || "Restaurant Owner").trim()
+        : String(ownerName || req.body.ownerDisplayName || req.auth.email || "Restaurant Owner").trim()
     };
 
     const restaurant = existing

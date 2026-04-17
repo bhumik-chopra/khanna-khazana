@@ -2,9 +2,9 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Toast from "../components/Toast";
 
+const API_BASE = process.env.REACT_APP_API_BASE || "https://khanna-khazana-3.onrender.com";
 const ADMIN_USERNAME = "bhumik";
 const ADMIN_PASSWORD = "8178307875";
-const ADMIN_TOKEN = "khanna-khazana-platform-admin";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
@@ -25,7 +25,7 @@ export default function AdminLogin() {
     }
   }, [navigate]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (username.trim() !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
@@ -33,9 +33,28 @@ export default function AdminLogin() {
       return;
     }
 
-    localStorage.setItem("admin_token", ADMIN_TOKEN);
-    showToast("success", "Logged in", "Welcome to the control deck.");
-    setTimeout(() => navigate("/panel"), 200);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: ADMIN_USERNAME,
+          password: ADMIN_PASSWORD
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        showToast("error", "Login failed", data?.message || "Unable to sign in.");
+        return;
+      }
+
+      localStorage.setItem("admin_token", data.token);
+      showToast("success", "Logged in", "Welcome to the control deck.");
+      setTimeout(() => navigate("/panel"), 200);
+    } catch (err) {
+      showToast("error", "Network error", err.message || "Backend not reachable");
+    }
   };
 
   return (

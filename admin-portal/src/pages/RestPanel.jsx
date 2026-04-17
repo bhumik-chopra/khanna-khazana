@@ -5,23 +5,83 @@ import { useNavigate } from "react-router-dom";
 import Toast from "../components/Toast";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "https://khanna-khazana-3.onrender.com";
-const STATUS_OPTIONS = ["verified", "pending", "rejected", "expired", "needs_reinspection"];
-const QUALITY_OPTIONS = ["good", "average", "poor", "unchecked"];
-const DOC_TYPES = ["fssai_certificate", "kitchen_photo", "inspection_report", "pest_control_proof", "staff_hygiene_proof", "compliance_document"];
-const CHECKS = [
-  ["kitchenClean", "Kitchen clean"],
-  ["cookingAreaClean", "Cooking area clean"],
-  ["storageProper", "Storage proper"],
-  ["staffWearingGlovesCaps", "Staff gloves/caps"],
-  ["wasteDisposalProper", "Waste disposal proper"],
-  ["packagingAreaHygienic", "Packaging area hygienic"],
-  ["refrigerationProper", "Refrigeration proper"]
+const VERIFICATION_DOCUMENTS = [
+  { key: "fssaiCertificateFile", type: "fssai_certificate", label: "FSSAI Certificate" },
+  { key: "kitchenCookingAreaPhoto", type: "kitchen_cooking_area_photo", label: "Kitchen Photo - Cooking Area" },
+  { key: "kitchenPreparationAreaPhoto", type: "kitchen_preparation_area_photo", label: "Kitchen Photo - Preparation Area" },
+  { key: "kitchenStorageAreaPhoto", type: "kitchen_storage_area_photo", label: "Kitchen Photo - Storage Area" },
+  { key: "kitchenUtensilsCleaningAreaPhoto", type: "kitchen_utensils_cleaning_area_photo", label: "Kitchen Photo - Utensils/Cleaning Area" },
+  { key: "staffHygienePhoto", type: "staff_hygiene_photo", label: "Staff hygiene photo" },
+  { key: "storageFridgePhoto", type: "storage_fridge_photo", label: "Storage/Fridge photo" },
+  { key: "packagingPhoto", type: "packaging_photo", label: "Packaging photo" },
+  { key: "pestControlProofFile", type: "pest_control_proof", label: "Pest control proof" }
 ];
+const VERIFICATION_SECTIONS = [
+  { id: "basic_business", label: "Basic Business Details", description: "Contact number and restaurant address." },
+  { id: "legal_compliance", label: "Legal and Compliance", description: "GSTN, FSSAI number, expiry, and certificate upload." },
+  { id: "kitchen_proof", label: "Kitchen Proof", description: "Mandatory kitchen proof images for all key areas." },
+  { id: "staff_hygiene", label: "Staff Hygiene", description: "Protective gear confirmation and optional staff photo." },
+  { id: "food_handling", label: "Food Handling and Storage", description: "Storage separation, fridge proof, and temperature confirmation." },
+  { id: "packaging_safety", label: "Packaging Safety", description: "Packaging type, packaging photo, and tamper-safe confirmation." },
+  { id: "pest_control", label: "Pest Control and Cleanliness", description: "Pest control date, proof, and waste disposal method." },
+  { id: "water_safety", label: "Water and Ingredient Safety", description: "Water source and clean-water confirmation." },
+  { id: "self_declaration", label: "Self Declaration", description: "Final declaration confirming food safety standards." }
+];
+const SECTION_DOCUMENT_KEYS = {
+  legal_compliance: ["fssaiCertificateFile"],
+  kitchen_proof: [
+    "kitchenCookingAreaPhoto",
+    "kitchenPreparationAreaPhoto",
+    "kitchenStorageAreaPhoto",
+    "kitchenUtensilsCleaningAreaPhoto"
+  ],
+  staff_hygiene: ["staffHygienePhoto"],
+  food_handling: ["storageFridgePhoto"],
+  packaging_safety: ["packagingPhoto"],
+  pest_control: ["pestControlProofFile"]
+};
 
-const emptyRestaurant = { id: "", name: "", description: "", location: "", gstnNumber: "", fssaiLicenseNumber: "", fssaiExpiryDate: "", kitchenVerificationStatus: "pending", lastInspectionDate: "", nextInspectionDate: "", packagingStatus: "unchecked", staffHygieneStatus: "unchecked", foodHandlingStatus: "unchecked", remarksByAdmin: "", verifiedBy: "admin" };
+const emptyRestaurant = {
+  id: "",
+  name: "",
+  ownerName: "",
+  contactNumber: "",
+  restaurantAddress: "",
+  gstnNumber: "",
+  fssaiLicenseNumber: "",
+  fssaiExpiryDate: "",
+  staffUsesProtectiveGear: false,
+  rawAndCookedStoredSeparately: false,
+  temperatureMaintainedProperly: false,
+  packagingType: "",
+  sealedPackaging: false,
+  lastPestControlDate: "",
+  wasteDisposalMethod: "",
+  waterSource: "RO",
+  cleanWaterUsedForCooking: false,
+  selfDeclarationAccepted: false,
+  kitchenVerificationStatus: "pending",
+  lastInspectionDate: "",
+  nextInspectionDate: "",
+  packagingStatus: "unchecked",
+  staffHygieneStatus: "unchecked",
+  foodHandlingStatus: "unchecked",
+  remarksByAdmin: "",
+  verifiedBy: "admin"
+};
 const emptyDish = { name: "", description: "", price: "", image: null, prepTime: "25-35 min", tags: "", isBestseller: false, categoryMode: "existing", selectedCategory: "", newCategory: "", restaurantId: "" };
-const emptyInspection = { kitchenClean: "pass", cookingAreaClean: "pass", storageProper: "pass", staffWearingGlovesCaps: "pass", wasteDisposalProper: "pass", packagingAreaHygienic: "pass", refrigerationProper: "pass", notes: "", statusAfterInspection: "pending", inspectedBy: "admin", nextInspectionDate: "" };
 const emptyComplaintReview = { status: "in_review", resolutionNote: "", reviewedBy: "admin", triggeredReinspection: false };
+const emptyVerificationFiles = {
+  fssaiCertificateFile: null,
+  kitchenCookingAreaPhoto: null,
+  kitchenPreparationAreaPhoto: null,
+  kitchenStorageAreaPhoto: null,
+  kitchenUtensilsCleaningAreaPhoto: null,
+  staffHygienePhoto: null,
+  storageFridgePhoto: null,
+  packagingPhoto: null,
+  pestControlProofFile: null
+};
 
 const dateInput = (v) => (v ? String(v).slice(0, 10) : "");
 const tagsToInput = (tags) => (Array.isArray(tags) ? tags.join(", ") : typeof tags === "string" ? tags : "");
@@ -33,13 +93,12 @@ export default function RestPanel() {
   const { user } = useUser();
   const { signOut } = useClerk();
   const [activeTab, setActiveTab] = useState("safety");
+  const [selectedVerificationSection, setSelectedVerificationSection] = useState("basic_business");
   const [restaurants, setRestaurants] = useState([]);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState("");
   const [restaurantForm, setRestaurantForm] = useState(emptyRestaurant);
   const [documents, setDocuments] = useState([]);
-  const [auditHistory, setAuditHistory] = useState([]);
-  const [inspectionForm, setInspectionForm] = useState(emptyInspection);
-  const [documentForm, setDocumentForm] = useState({ type: DOC_TYPES[0], label: "", file: null, uploadedBy: "admin" });
+  const [verificationFiles, setVerificationFiles] = useState(emptyVerificationFiles);
   const [complaints, setComplaints] = useState([]);
   const [selectedComplaintId, setSelectedComplaintId] = useState("");
   const [complaintReview, setComplaintReview] = useState(emptyComplaintReview);
@@ -63,6 +122,17 @@ export default function RestPanel() {
     navigate(localToken ? "/admin-login" : "/login");
   };
   const selectedRestaurant = restaurants.find((item) => item.id === selectedRestaurantId) || null;
+  const displayRestaurantName =
+    selectedRestaurant?.name ||
+    restaurantForm.name ||
+    String(user?.unsafeMetadata?.restaurantName || "").trim() ||
+    "Restaurant";
+  const displayOwnerName =
+    restaurantForm.ownerName ||
+    String(user?.unsafeMetadata?.ownerName || "").trim() ||
+    selectedRestaurant?.ownerName ||
+    selectedRestaurant?.ownerDisplayName ||
+    "Owner";
 
   const fetchJson = async (url, options = {}) => {
     const localToken = localStorage.getItem("admin_token");
@@ -93,20 +163,27 @@ export default function RestPanel() {
 
   const loadRestaurantDetails = async (restaurantId) => {
     if (!restaurantId) return;
-    const [detail, history] = await Promise.all([
-      fetchJson(`${API_BASE}/api/restaurants/${restaurantId}`),
-      fetchJson(`${API_BASE}/api/restaurants/${restaurantId}/audit-history`)
-    ]);
+    const detail = await fetchJson(`${API_BASE}/api/restaurants/${restaurantId}`);
     setDocuments(detail.documents || []);
-    setAuditHistory(history || []);
     setRestaurantForm({
       id: detail.id || "",
       name: detail.name || "",
-      description: detail.description || "",
-      location: detail.location || "",
+      ownerName: detail.ownerName || detail.ownerDisplayName || "",
+      contactNumber: detail.contactNumber || "",
+      restaurantAddress: detail.restaurantAddress || detail.location || "",
       gstnNumber: detail.gstnNumber || "",
       fssaiLicenseNumber: detail.fssaiLicenseNumber || "",
       fssaiExpiryDate: dateInput(detail.fssaiExpiryDate),
+      staffUsesProtectiveGear: Boolean(detail.staffUsesProtectiveGear),
+      rawAndCookedStoredSeparately: Boolean(detail.rawAndCookedStoredSeparately),
+      temperatureMaintainedProperly: Boolean(detail.temperatureMaintainedProperly),
+      packagingType: detail.packagingType || "",
+      sealedPackaging: Boolean(detail.sealedPackaging),
+      lastPestControlDate: dateInput(detail.lastPestControlDate),
+      wasteDisposalMethod: detail.wasteDisposalMethod || "",
+      waterSource: detail.waterSource || "RO",
+      cleanWaterUsedForCooking: Boolean(detail.cleanWaterUsedForCooking),
+      selfDeclarationAccepted: Boolean(detail.selfDeclarationAccepted),
       kitchenVerificationStatus: detail.kitchenVerificationStatus || "pending",
       lastInspectionDate: dateInput(detail.lastInspectionDate),
       nextInspectionDate: dateInput(detail.nextInspectionDate),
@@ -165,11 +242,12 @@ export default function RestPanel() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: restaurantName,
+        ownerName: String(meta.ownerName || "").trim(),
         gstnNumber: String(meta.gstnNumber || "").trim(),
         verifiedBy: String(meta.ownerName || primaryEmail || "restaurant_owner").trim(),
         ownerDisplayName: String(meta.ownerName || "").trim(),
-        location: "",
-        description: ""
+        restaurantAddress: "",
+        location: ""
       })
       })
       .then((data) => {
@@ -182,47 +260,56 @@ export default function RestPanel() {
 
   const saveRestaurant = async (e) => {
     e.preventDefault();
+
+    if (!restaurantForm.name.trim() && selectedVerificationSection !== "basic_business") {
+      showToast("error", "Basic details first", "Please submit basic business details first.");
+      return;
+    }
+
+    if (selectedVerificationSection === "self_declaration" && !restaurantForm.selfDeclarationAccepted) {
+      showToast("error", "Declaration required", "Please confirm the self declaration before submitting.");
+      return;
+    }
     try {
       const data = await fetchJson(`${API_BASE}/api/restaurants`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(restaurantForm)
+        body: JSON.stringify({
+          ...restaurantForm,
+          location: restaurantForm.restaurantAddress,
+          ownerDisplayName: restaurantForm.ownerName
+        })
       });
-      showToast("success", "Restaurant saved", `${data.name} updated.`);
+      await uploadVerificationDocuments(data.id, selectedVerificationSection);
+      const sectionLabel = VERIFICATION_SECTIONS.find((item) => item.id === selectedVerificationSection)?.label || "Section";
+      showToast("success", "Section saved", `${sectionLabel} submitted for ${data.name}.`);
       await loadRestaurants(data.id);
       await loadRestaurantDetails(data.id);
       await loadDishes();
     } catch (err) { showToast("error", "Save failed", err.message); }
   };
 
-  const uploadDocument = async (e) => {
-    e.preventDefault();
-    if (!selectedRestaurantId || !documentForm.file) return showToast("error", "Missing file", "Choose a restaurant and file first.");
-    const fd = new FormData();
-    Object.entries(documentForm).forEach(([k, v]) => v != null && fd.append(k, v));
-    try {
-      await fetchJson(`${API_BASE}/api/restaurants/${selectedRestaurantId}/documents`, { method: "POST", body: fd });
-      showToast("success", "Document uploaded", "Compliance document saved.");
-      setDocumentForm({ type: documentForm.type, label: "", file: null, uploadedBy: "admin" });
-      await loadRestaurants(selectedRestaurantId);
-      await loadRestaurantDetails(selectedRestaurantId);
-    } catch (err) { showToast("error", "Upload failed", err.message); }
-  };
+  const uploadVerificationDocuments = async (restaurantId, sectionId) => {
+    const allowedKeys = new Set(SECTION_DOCUMENT_KEYS[sectionId] || []);
+    const uploads = VERIFICATION_DOCUMENTS.filter(({ key }) => allowedKeys.has(key) && verificationFiles[key]);
+    if (!uploads.length) return;
 
-  const submitInspection = async (e) => {
-    e.preventDefault();
-    if (!selectedRestaurantId) return showToast("error", "Choose restaurant", "Select a restaurant first.");
-    try {
-      const data = await fetchJson(`${API_BASE}/api/restaurants/${selectedRestaurantId}/inspections`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(inspectionForm)
+    for (const item of uploads) {
+      const fd = new FormData();
+      fd.append("type", item.type);
+      fd.append("label", item.label);
+      fd.append("file", verificationFiles[item.key]);
+      fd.append("uploadedBy", token ? "admin" : (user?.primaryEmailAddress?.emailAddress || "restaurant_owner"));
+      await fetchJson(`${API_BASE}/api/restaurants/${restaurantId}/documents`, { method: "POST", body: fd });
+    }
+
+    setVerificationFiles((prev) => {
+      const next = { ...prev };
+      uploads.forEach(({ key }) => {
+        next[key] = null;
       });
-      showToast("success", "Inspection submitted", `Score ${data?.safety?.totalScore ?? 0} / 100`);
-      await loadRestaurants(selectedRestaurantId);
-      await loadRestaurantDetails(selectedRestaurantId);
-      await loadComplaints();
-    } catch (err) { showToast("error", "Inspection failed", err.message); }
+      return next;
+    });
   };
 
   const buildDishFormData = (form, category) => {
@@ -287,30 +374,76 @@ export default function RestPanel() {
   return (
     <div className="admin-panel-page">
       <div className="container admin-panel-shell">
-        <header className="admin-panel-header"><div><div className="admin-badge">KK Control</div><h1>Restaurant safety and operations control</h1><p>Manage safety profiles, compliance documents, inspections, complaints, and menu assignment.</p></div><div className="admin-panel-actions"><button className="btn btn-primary" onClick={() => window.open("https://khanna-khazana-4.onrender.com", "_blank", "noopener,noreferrer")}>Delivery portal</button><button className="btn admin-secondary-button" onClick={logout}>Logout</button></div></header>
+        <header className="admin-panel-header"><div><div className="admin-badge">KK Control</div><div className="admin-panel-subheading">Restaurant safety and operations control</div><div className="admin-panel-identity"><div className="admin-panel-identity-item"><span>Restaurant</span><strong>{displayRestaurantName}</strong></div><div className="admin-panel-identity-divider" aria-hidden="true" /><div className="admin-panel-identity-item"><span>Owner</span><strong>{displayOwnerName}</strong></div></div></div><div className="admin-panel-actions"><button className="btn btn-primary" onClick={() => window.open("https://khanna-khazana-4.onrender.com", "_blank", "noopener,noreferrer")}>Delivery portal</button><button className="btn admin-secondary-button" onClick={logout}>Logout</button></div></header>
         <section className="admin-panel-body">
           <aside className="admin-side-panel">{[["safety", "Restaurant Safety"], ["complaints", "Complaints"], ["add", "Add Dish"], ["update", "Update Dish"], ["remove", "Remove Dish"]].map(([key, label]) => <button key={key} type="button" className={`admin-tab-button ${activeTab === key ? "is-active" : ""}`} onClick={() => setActiveTab(key)}>{label}</button>)}</aside>
           <div className="admin-content-panel">
             {activeTab === "safety" ? (
               <div className="admin-remove-shell">
-                <div className="admin-form-header"><h2>Restaurant safety profile</h2><p>Select a restaurant, update compliance fields, upload documents, and submit inspection results.</p></div>
-                <div className="admin-restaurant-list">{restaurants.map((item) => <button key={item.id} type="button" className={`admin-restaurant-card ${selectedRestaurantId === item.id ? "is-selected" : ""}`} onClick={() => setSelectedRestaurantId(item.id)}><strong>{item.name}</strong><span>{item.kitchenVerificationStatus.replaceAll("_", " ")}</span><small>Score {item.hygieneScore || 0} / 100</small></button>)}{token ? <button type="button" className="btn admin-secondary-button admin-button-full" onClick={() => { setSelectedRestaurantId(""); setRestaurantForm(emptyRestaurant); setDocuments([]); setAuditHistory([]); }}>New restaurant</button> : null}</div>
+                <div className="admin-form-header"><h2>Restaurant verification submission</h2><p>Submit only the required restaurant verification details, compliance proof, and kitchen safety uploads.</p></div>
+                <div className="admin-restaurant-list">{restaurants.map((item) => <button key={item.id} type="button" className={`admin-restaurant-card ${selectedRestaurantId === item.id ? "is-selected" : ""}`} onClick={() => setSelectedRestaurantId(item.id)}><strong>{item.name}</strong><span>{item.kitchenVerificationStatus.replaceAll("_", " ")}</span><small>Score {item.hygieneScore || 0} / 100</small></button>)}</div>
+                <div className="admin-form admin-grid-form">
+                  <div className="admin-form-header">
+                    <h2>Choose submission heading</h2>
+                    <p>Select one heading and submit that section separately.</p>
+                  </div>
+                  <label className="admin-field admin-field-full">
+                    <span>Submission heading</span>
+                    <select value={selectedVerificationSection} onChange={(e) => setSelectedVerificationSection(e.target.value)}>
+                      {VERIFICATION_SECTIONS.map((section) => <option key={section.id} value={section.id}>{section.label}</option>)}
+                    </select>
+                  </label>
+                </div>
                 <form onSubmit={saveRestaurant} className="admin-form admin-grid-form">
-                  {["name", "location", "gstnNumber", "fssaiLicenseNumber", "verifiedBy"].map((field) => <label key={field} className="admin-field"><span>{field}</span><input value={restaurantForm[field]} onChange={(e) => setRestaurantForm((p) => ({ ...p, [field]: e.target.value }))} /></label>)}
-                  <label className="admin-field"><span>FSSAI expiry date</span><input type="date" value={restaurantForm.fssaiExpiryDate} onChange={(e) => setRestaurantForm((p) => ({ ...p, fssaiExpiryDate: e.target.value }))} /></label>
-                  <label className="admin-field"><span>Verification status</span><select value={restaurantForm.kitchenVerificationStatus} onChange={(e) => setRestaurantForm((p) => ({ ...p, kitchenVerificationStatus: e.target.value }))}>{STATUS_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}</select></label>
-                  <label className="admin-field"><span>Last inspection date</span><input type="date" value={restaurantForm.lastInspectionDate} onChange={(e) => setRestaurantForm((p) => ({ ...p, lastInspectionDate: e.target.value }))} /></label>
-                  <label className="admin-field"><span>Next inspection date</span><input type="date" value={restaurantForm.nextInspectionDate} onChange={(e) => setRestaurantForm((p) => ({ ...p, nextInspectionDate: e.target.value }))} /></label>
-                  {["packagingStatus", "staffHygieneStatus", "foodHandlingStatus"].map((field) => <label key={field} className="admin-field"><span>{field}</span><select value={restaurantForm[field]} onChange={(e) => setRestaurantForm((p) => ({ ...p, [field]: e.target.value }))}>{QUALITY_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}</select></label>)}
-                  <label className="admin-field admin-field-full"><span>Description</span><textarea rows={3} value={restaurantForm.description} onChange={(e) => setRestaurantForm((p) => ({ ...p, description: e.target.value }))} /></label>
-                  <label className="admin-field admin-field-full"><span>Remarks by admin</span><textarea rows={3} value={restaurantForm.remarksByAdmin} onChange={(e) => setRestaurantForm((p) => ({ ...p, remarksByAdmin: e.target.value }))} /></label>
-                  <button className="btn btn-primary admin-button-full">{restaurantForm.id ? "Update restaurant" : "Create restaurant"}</button>
+                  <div className="admin-form-header"><h2>{VERIFICATION_SECTIONS.find((section) => section.id === selectedVerificationSection)?.label}</h2><p>{VERIFICATION_SECTIONS.find((section) => section.id === selectedVerificationSection)?.description}</p></div>
+                  {selectedVerificationSection === "basic_business" ? <>
+                    {[
+                      ["contactNumber", "Contact Number"],
+                      ["restaurantAddress", "Restaurant Address"]
+                    ].map(([field, label]) => <label key={field} className={`admin-field ${field === "restaurantAddress" ? "admin-field-full" : ""}`}><span>{label}</span>{field === "restaurantAddress" ? <textarea rows={3} value={restaurantForm[field]} onChange={(e) => setRestaurantForm((p) => ({ ...p, [field]: e.target.value }))} /> : <input value={restaurantForm[field]} onChange={(e) => setRestaurantForm((p) => ({ ...p, [field]: e.target.value }))} />}</label>)}
+                  </> : null}
+                  {selectedVerificationSection === "legal_compliance" ? <>
+                    <label className="admin-field"><span>GSTN Number</span><input value={restaurantForm.gstnNumber} onChange={(e) => setRestaurantForm((p) => ({ ...p, gstnNumber: e.target.value }))} /></label>
+                    <label className="admin-field"><span>FSSAI License Number</span><input value={restaurantForm.fssaiLicenseNumber} onChange={(e) => setRestaurantForm((p) => ({ ...p, fssaiLicenseNumber: e.target.value }))} /></label>
+                    <label className="admin-field"><span>FSSAI expiry date</span><input type="date" value={restaurantForm.fssaiExpiryDate} onChange={(e) => setRestaurantForm((p) => ({ ...p, fssaiExpiryDate: e.target.value }))} /></label>
+                    <label className="admin-field admin-field-full"><span>FSSAI Certificate</span><input type="file" accept="image/*,.pdf" onChange={(e) => setVerificationFiles((p) => ({ ...p, fssaiCertificateFile: e.target.files?.[0] || null }))} /></label>
+                  </> : null}
+                  {selectedVerificationSection === "kitchen_proof" ? <>
+                    <label className="admin-field"><span>Kitchen Photo - Cooking Area</span><input type="file" accept="image/*" onChange={(e) => setVerificationFiles((p) => ({ ...p, kitchenCookingAreaPhoto: e.target.files?.[0] || null }))} /></label>
+                    <label className="admin-field"><span>Kitchen Photo - Preparation Area</span><input type="file" accept="image/*" onChange={(e) => setVerificationFiles((p) => ({ ...p, kitchenPreparationAreaPhoto: e.target.files?.[0] || null }))} /></label>
+                    <label className="admin-field"><span>Kitchen Photo - Storage Area</span><input type="file" accept="image/*" onChange={(e) => setVerificationFiles((p) => ({ ...p, kitchenStorageAreaPhoto: e.target.files?.[0] || null }))} /></label>
+                    <label className="admin-field"><span>Kitchen Photo - Utensils/Cleaning Area</span><input type="file" accept="image/*" onChange={(e) => setVerificationFiles((p) => ({ ...p, kitchenUtensilsCleaningAreaPhoto: e.target.files?.[0] || null }))} /></label>
+                  </> : null}
+                  {selectedVerificationSection === "staff_hygiene" ? <>
+                    <label className="admin-field"><span>Staff uses gloves, caps, aprons</span><select value={restaurantForm.staffUsesProtectiveGear ? "yes" : "no"} onChange={(e) => setRestaurantForm((p) => ({ ...p, staffUsesProtectiveGear: e.target.value === "yes" }))}><option value="yes">Yes</option><option value="no">No</option></select></label>
+                    <label className="admin-field"><span>Staff hygiene photo</span><input type="file" accept="image/*" onChange={(e) => setVerificationFiles((p) => ({ ...p, staffHygienePhoto: e.target.files?.[0] || null }))} /></label>
+                  </> : null}
+                  {selectedVerificationSection === "food_handling" ? <>
+                    <label className="admin-field"><span>Raw and cooked food stored separately</span><select value={restaurantForm.rawAndCookedStoredSeparately ? "yes" : "no"} onChange={(e) => setRestaurantForm((p) => ({ ...p, rawAndCookedStoredSeparately: e.target.value === "yes" }))}><option value="yes">Yes</option><option value="no">No</option></select></label>
+                    <label className="admin-field"><span>Temperature maintained properly</span><select value={restaurantForm.temperatureMaintainedProperly ? "yes" : "no"} onChange={(e) => setRestaurantForm((p) => ({ ...p, temperatureMaintainedProperly: e.target.value === "yes" }))}><option value="yes">Yes</option><option value="no">No</option></select></label>
+                    <label className="admin-field admin-field-full"><span>Storage/Fridge photo</span><input type="file" accept="image/*" onChange={(e) => setVerificationFiles((p) => ({ ...p, storageFridgePhoto: e.target.files?.[0] || null }))} /></label>
+                  </> : null}
+                  {selectedVerificationSection === "packaging_safety" ? <>
+                    <label className="admin-field"><span>Type of packaging used</span><input value={restaurantForm.packagingType} onChange={(e) => setRestaurantForm((p) => ({ ...p, packagingType: e.target.value }))} /></label>
+                    <label className="admin-field"><span>Sealed / tamper-safe packaging</span><select value={restaurantForm.sealedPackaging ? "yes" : "no"} onChange={(e) => setRestaurantForm((p) => ({ ...p, sealedPackaging: e.target.value === "yes" }))}><option value="yes">Yes</option><option value="no">No</option></select></label>
+                    <label className="admin-field admin-field-full"><span>Packaging photo</span><input type="file" accept="image/*" onChange={(e) => setVerificationFiles((p) => ({ ...p, packagingPhoto: e.target.files?.[0] || null }))} /></label>
+                  </> : null}
+                  {selectedVerificationSection === "pest_control" ? <>
+                    <label className="admin-field"><span>Last pest control date</span><input type="date" value={restaurantForm.lastPestControlDate} onChange={(e) => setRestaurantForm((p) => ({ ...p, lastPestControlDate: e.target.value }))} /></label>
+                    <label className="admin-field"><span>Pest control proof</span><input type="file" accept="image/*,.pdf" onChange={(e) => setVerificationFiles((p) => ({ ...p, pestControlProofFile: e.target.files?.[0] || null }))} /></label>
+                    <label className="admin-field admin-field-full"><span>Waste disposal method</span><textarea rows={3} value={restaurantForm.wasteDisposalMethod} onChange={(e) => setRestaurantForm((p) => ({ ...p, wasteDisposalMethod: e.target.value }))} /></label>
+                  </> : null}
+                  {selectedVerificationSection === "water_safety" ? <>
+                    <label className="admin-field"><span>Water source</span><select value={restaurantForm.waterSource} onChange={(e) => setRestaurantForm((p) => ({ ...p, waterSource: e.target.value }))}><option value="RO">RO</option><option value="Filtered">Filtered</option><option value="Municipal">Municipal</option></select></label>
+                    <label className="admin-field"><span>Clean water used for cooking</span><select value={restaurantForm.cleanWaterUsedForCooking ? "yes" : "no"} onChange={(e) => setRestaurantForm((p) => ({ ...p, cleanWaterUsedForCooking: e.target.value === "yes" }))}><option value="yes">Yes</option><option value="no">No</option></select></label>
+                  </> : null}
+                  {selectedVerificationSection === "self_declaration" ? <>
+                    <label className="admin-checkbox"><input type="checkbox" checked={restaurantForm.selfDeclarationAccepted} onChange={(e) => setRestaurantForm((p) => ({ ...p, selfDeclarationAccepted: e.target.checked }))} /><span>I confirm that all provided information is true and the kitchen follows food safety standards.</span></label>
+                  </> : null}
+                  <button className="btn btn-primary admin-button-full">Submit {VERIFICATION_SECTIONS.find((section) => section.id === selectedVerificationSection)?.label}</button>
                 </form>
                 {selectedRestaurant ? <div className="admin-score-strip"><div className="admin-score-card"><span>Score</span><strong>{selectedRestaurant.hygieneScore || 0}</strong><small>{selectedRestaurant.scoreBand || "poor"}</small></div><div className="admin-score-card"><span>Status</span><strong>{selectedRestaurant.kitchenVerificationStatus.replaceAll("_", " ")}</strong><small>{selectedRestaurant.documentCount || 0} documents</small></div><div className="admin-score-card"><span>Open complaints</span><strong>{selectedRestaurant.openComplaintCount || 0}</strong><small>{selectedRestaurant.badges?.recentlyAudited ? "Recently audited" : "Audit due"}</small></div></div> : null}
-                <form onSubmit={uploadDocument} className="admin-form admin-grid-form"><div className="admin-form-header"><h2>Document upload</h2><p>FSSAI, kitchen photos, inspection reports, pest control proof, staff hygiene proof, and any compliance file.</p></div><label className="admin-field"><span>Type</span><select value={documentForm.type} onChange={(e) => setDocumentForm((p) => ({ ...p, type: e.target.value }))}>{DOC_TYPES.map((v) => <option key={v} value={v}>{v}</option>)}</select></label><label className="admin-field"><span>Label</span><input value={documentForm.label} onChange={(e) => setDocumentForm((p) => ({ ...p, label: e.target.value }))} /></label><label className="admin-field admin-field-full"><span>File</span><input type="file" onChange={(e) => setDocumentForm((p) => ({ ...p, file: e.target.files?.[0] || null }))} /></label><button className="btn btn-primary admin-button-full">Upload document</button></form>
                 <div className="admin-document-list">{documents.length ? documents.map((doc) => <a key={doc.id} className="admin-document-card" href={doc.fileUrl} target="_blank" rel="noreferrer"><strong>{doc.label || doc.type}</strong><span>{doc.type.replaceAll("_", " ")}</span><small>{new Date(doc.createdAt).toLocaleDateString()}</small></a>) : <div className="admin-empty-state">No compliance documents yet.</div>}</div>
-                <form onSubmit={submitInspection} className="admin-form admin-grid-form"><div className="admin-form-header"><h2>Inspection checklist</h2><p>Record inspection outcomes and let the system recalculate the hygiene score.</p></div>{CHECKS.map(([key, label]) => <label key={key} className="admin-field"><span>{label}</span><select value={inspectionForm[key]} onChange={(e) => setInspectionForm((p) => ({ ...p, [key]: e.target.value }))}><option value="pass">pass</option><option value="partial">partial</option><option value="fail">fail</option></select></label>)}<label className="admin-field"><span>Status after inspection</span><select value={inspectionForm.statusAfterInspection} onChange={(e) => setInspectionForm((p) => ({ ...p, statusAfterInspection: e.target.value }))}>{STATUS_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}</select></label><label className="admin-field"><span>Inspector</span><input value={inspectionForm.inspectedBy} onChange={(e) => setInspectionForm((p) => ({ ...p, inspectedBy: e.target.value }))} /></label><label className="admin-field"><span>Next inspection date</span><input type="date" value={inspectionForm.nextInspectionDate} onChange={(e) => setInspectionForm((p) => ({ ...p, nextInspectionDate: e.target.value }))} /></label><label className="admin-field admin-field-full"><span>Notes</span><textarea rows={3} value={inspectionForm.notes} onChange={(e) => setInspectionForm((p) => ({ ...p, notes: e.target.value }))} /></label><button className="btn btn-primary admin-button-full">Submit inspection</button></form>
-                <div className="admin-audit-list">{auditHistory.length ? auditHistory.map((item) => <div key={item.id} className="admin-audit-card"><strong>{item.actionType.replaceAll("_", " ")}</strong><span>{item.changedBy} / {new Date(item.createdAt).toLocaleString()}</span><small>Score {item.previousScore ?? "-"} to {item.newScore ?? "-"} / Status {item.previousStatus || "-"} to {item.newStatus || "-"}</small></div>) : <div className="admin-empty-state">No audit history yet.</div>}</div>
               </div>
             ) : null}
             {activeTab === "complaints" ? (
