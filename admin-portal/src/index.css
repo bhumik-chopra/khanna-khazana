@@ -132,6 +132,127 @@ select {
   overflow: hidden;
 }
 
+.admin-entry-minimal {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(280px, 1fr));
+  gap: clamp(1.25rem, 4vw, 3.5rem);
+  align-content: center;
+  justify-content: center;
+  padding: 2rem 0;
+}
+
+.admin-entry-header {
+  grid-column: 1 / -1;
+  display: grid;
+  justify-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.4rem;
+  text-align: center;
+}
+
+.admin-entry-header h1 {
+  margin: 0;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(2rem, 4.4vw, 3.5rem);
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.admin-entry-box {
+  position: relative;
+  min-height: min(56vh, 460px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.28rem;
+  padding: 1.5rem;
+  text-decoration: none;
+  color: var(--ink);
+  border: 2px solid rgba(17, 22, 17, 0.9);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 248, 239, 0.88));
+  box-shadow:
+    0 26px 54px rgba(17, 22, 17, 0.08),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(10px);
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+
+.admin-entry-box::before {
+  content: "";
+  position: absolute;
+  inset: 1rem;
+  border: 1px solid rgba(17, 22, 17, 0.06);
+  pointer-events: none;
+}
+
+.admin-entry-box:hover {
+  transform: translateY(-6px);
+  box-shadow:
+    0 34px 64px rgba(17, 22, 17, 0.12),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+
+.admin-entry-box-admin:hover {
+  border-color: rgba(255, 122, 26, 0.95);
+}
+
+.admin-entry-box-restaurant:hover {
+  border-color: rgba(10, 163, 92, 0.95);
+}
+
+.admin-entry-icon {
+  position: relative;
+  z-index: 1;
+  width: 5.4rem;
+  height: 5.4rem;
+  display: grid;
+  place-items: center;
+  margin-bottom: 1rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(255, 122, 26, 0.14), rgba(10, 163, 92, 0.14));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+}
+
+.admin-entry-icon svg {
+  width: 2.8rem;
+  height: 2.8rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.admin-entry-box-admin .admin-entry-icon {
+  color: var(--orange);
+}
+
+.admin-entry-box-restaurant .admin-entry-icon {
+  color: var(--green-deep);
+}
+
+.admin-entry-box span,
+.admin-entry-box strong {
+  position: relative;
+  z-index: 1;
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
+  text-transform: lowercase;
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+}
+
+.admin-entry-box span {
+  font-size: clamp(1.6rem, 3.4vw, 2.9rem);
+}
+
+.admin-entry-box strong {
+  font-size: clamp(2.2rem, 4.6vw, 4rem);
+}
+
 .admin-entry-layout {
   display: grid;
   grid-template-columns: minmax(360px, 1fr) minmax(320px, 0.95fr);
@@ -691,6 +812,7 @@ select {
 }
 
 @media (max-width: 920px) {
+  .admin-entry-minimal,
   .admin-entry-layout,
   .admin-login-layout,
   .admin-panel-body {
@@ -707,6 +829,15 @@ select {
 @media (max-width: 768px) {
   .container {
     width: min(100%, calc(100% - 1.2rem));
+  }
+
+  .admin-entry-minimal {
+    min-height: auto;
+    padding: 1rem 0 1.4rem;
+  }
+
+  .admin-entry-box {
+    min-height: 240px;
   }
 
   .admin-panel-header,
