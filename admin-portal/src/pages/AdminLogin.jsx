@@ -21,7 +21,7 @@ export default function AdminLogin() {
 
   useEffect(() => {
     if (localStorage.getItem("admin_token")) {
-      navigate("/panel", { replace: true });
+      navigate("/approval", { replace: true });
     }
   }, [navigate]);
 
@@ -51,7 +51,7 @@ export default function AdminLogin() {
 
       localStorage.setItem("admin_token", data.token);
       showToast("success", "Logged in", "Welcome to the control deck.");
-      setTimeout(() => navigate("/panel"), 200);
+      setTimeout(() => navigate("/approval"), 200);
     } catch (err) {
       showToast("error", "Network error", err.message || "Backend not reachable");
     }

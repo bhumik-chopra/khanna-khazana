@@ -15,7 +15,8 @@ const restaurantAuditSchema = new mongoose.Schema(
         "document_uploaded",
         "inspection_submitted",
         "complaint_reviewed",
-        "score_recalculated"
+        "score_recalculated",
+        "approval_reviewed"
       ],
       required: true
     },

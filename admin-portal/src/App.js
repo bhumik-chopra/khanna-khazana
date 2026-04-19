@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import AdminLogin from "./pages/AdminLogin";
+import Approval from "./pages/Approval";
 import Entry from "./pages/Entry";
 import RestLogin from "./pages/RestLogin";
 import RestPanel from "./pages/RestPanel";
@@ -50,6 +51,12 @@ function RequireAuth({ children }) {
   return children;
 }
 
+function RequireAdmin({ children }) {
+  const token = localStorage.getItem("admin_token");
+  if (!token) return <Navigate to="/admin-login" replace />;
+  return children;
+}
+
 export default function App() {
   useFoodBackgroundMotion();
 
@@ -58,6 +65,14 @@ export default function App() {
       <Route path="/" element={<Entry />} />
 
       <Route path="/admin-login" element={<AdminLogin />} />
+      <Route
+        path="/approval"
+        element={
+          <RequireAdmin>
+            <Approval />
+          </RequireAdmin>
+        }
+      />
       <Route path="/login" element={<RestLogin />} />
 
       <Route

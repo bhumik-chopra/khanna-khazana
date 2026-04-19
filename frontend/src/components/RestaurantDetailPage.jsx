@@ -9,7 +9,11 @@ const RestaurantDetailPage = ({ apiBase }) => {
 
   useEffect(() => {
     fetch(`${apiBase}/api/restaurants/${id}`)
-      .then((res) => res.json())
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.message || "Restaurant not available");
+        return data;
+      })
       .then((data) => setRestaurant(data))
       .catch(() => setRestaurant(null));
   }, [apiBase, id]);

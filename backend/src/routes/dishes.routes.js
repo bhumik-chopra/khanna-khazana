@@ -35,10 +35,25 @@ async function deleteFromCloudinary(publicId) {
 router.get("/", async (req, res) => {
   try {
     const defaultRestaurant = await ensureDefaultRestaurant();
-    const filter =
-      req.auth?.isPlatformAdmin || !req.auth
-        ? {}
-        : { restaurantId: { $in: (await Restaurant.find({ ownerClerkUserId: req.auth.clerkUserId }).select("_id")).map((item) => item._id) } };
+    let filter = {};
+
+    if (!req.auth) {
+      filter = {
+        restaurantId: {
+          $in: (await Restaurant.find({ kitchenVerificationStatus: "verified" }).select("_id")).map(
+            (item) => item._id
+          )
+        }
+      };
+    } else if (!req.auth.isPlatformAdmin) {
+      filter = {
+        restaurantId: {
+          $in: (await Restaurant.find({ ownerClerkUserId: req.auth.clerkUserId }).select("_id")).map(
+            (item) => item._id
+          )
+        }
+      };
+    }
 
     const dishes = await Dish.find(filter).populate("restaurantId").sort({ createdAt: -1 });
 
@@ -61,7 +76,27 @@ router.get("/", async (req, res) => {
 
 router.get("/categories", async (req, res) => {
   try {
-    const categories = await Dish.distinct("category");
+    let filter = {};
+
+    if (!req.auth) {
+      filter = {
+        restaurantId: {
+          $in: (await Restaurant.find({ kitchenVerificationStatus: "verified" }).select("_id")).map(
+            (item) => item._id
+          )
+        }
+      };
+    } else if (!req.auth.isPlatformAdmin) {
+      filter = {
+        restaurantId: {
+          $in: (await Restaurant.find({ ownerClerkUserId: req.auth.clerkUserId }).select("_id")).map(
+            (item) => item._id
+          )
+        }
+      };
+    }
+
+    const categories = await Dish.distinct("category", filter);
     res.json(["All", ...categories.filter(Boolean)]);
   } catch (err) {
     res.status(500).json({ message: "Failed to fetch categories" });

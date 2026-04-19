@@ -6,7 +6,7 @@ const RestaurantDocument = require("../models/RestaurantDocument");
 const RestaurantInspection = require("../models/RestaurantInspection");
 const RestaurantComplaint = require("../models/RestaurantComplaint");
 const RestaurantAudit = require("../models/RestaurantAudit");
-const { canAccessRestaurant, requireDashboardUser } = require("../middleware/auth");
+const { canAccessRestaurant, requireAdmin, requireDashboardUser } = require("../middleware/auth");
 const cloudinary = require("../config/cloudinary");
 const {
   createAuditEntry,
@@ -45,10 +45,13 @@ function uploadToCloudinary(buffer, folder = "khanna-khazana/compliance") {
 router.get("/", async (req, res) => {
   try {
     await ensureDefaultRestaurant();
-    const filter =
-      req.auth?.isPlatformAdmin || !req.auth
-        ? {}
-        : { ownerClerkUserId: req.auth.clerkUserId };
+    let filter = {};
+
+    if (!req.auth) {
+      filter = { kitchenVerificationStatus: "verified" };
+    } else if (!req.auth.isPlatformAdmin) {
+      filter = { ownerClerkUserId: req.auth.clerkUserId };
+    }
 
     const restaurants = await Restaurant.find(filter).sort({ createdAt: -1 });
     const restaurantIds = restaurants.map((restaurant) => restaurant._id);
@@ -90,6 +93,9 @@ router.get("/:id", async (req, res) => {
   try {
     const restaurant = await Restaurant.findById(req.params.id);
     if (!restaurant) return res.status(404).json({ message: "Restaurant not found" });
+    if (!req.auth && restaurant.kitchenVerificationStatus !== "verified") {
+      return res.status(404).json({ message: "Restaurant not found" });
+    }
 
     const isOwnerView = canAccessRestaurant(req, restaurant);
 
@@ -179,6 +185,7 @@ router.post("/", requireDashboardUser, async (req, res) => {
     const usesCleanWater = parseBoolean(cleanWaterUsedForCooking);
     const acceptedDeclaration = parseBoolean(selfDeclarationAccepted);
 
+    const isPlatformAdmin = req.auth.isPlatformAdmin;
     const payload = {
       name: String(name).trim(),
       slug: slugify(name),
@@ -200,7 +207,9 @@ router.post("/", requireDashboardUser, async (req, res) => {
       waterSource: ["RO", "Filtered", "Municipal"].includes(waterSource) ? waterSource : "",
       cleanWaterUsedForCooking: usesCleanWater,
       selfDeclarationAccepted: acceptedDeclaration,
-      kitchenVerificationStatus: kitchenVerificationStatus || "pending",
+      kitchenVerificationStatus: isPlatformAdmin
+        ? kitchenVerificationStatus || existing?.kitchenVerificationStatus || "pending"
+        : "pending",
       lastInspectionDate: lastInspectionDate || null,
       nextInspectionDate: nextInspectionDate || null,
       packagingStatus:
@@ -220,6 +229,13 @@ router.post("/", requireDashboardUser, async (req, res) => {
         : String(ownerName || req.body.ownerDisplayName || req.auth.email || "Restaurant Owner").trim()
     };
 
+    if (!isPlatformAdmin) {
+      payload.hygieneScore = 0;
+      payload.scoreBand = "poor";
+      payload.lastVerifiedDate = null;
+      payload.verifiedBy = "";
+    }
+
     const restaurant = existing
       ? await Restaurant.findByIdAndUpdate(id, payload, { new: true, runValidators: true })
       : await Restaurant.create(payload);
@@ -237,13 +253,17 @@ router.post("/", requireDashboardUser, async (req, res) => {
       metadata: { profileFieldsUpdated: Object.keys(payload) }
     });
 
-    const refreshed = await recalculateRestaurantSafety(restaurant._id, {
-      changedBy: payload.verifiedBy || "admin",
-      reason: "profile_saved",
-      previousRemarks: previous?.remarksByAdmin || ""
-    });
+    if (isPlatformAdmin) {
+      const refreshed = await recalculateRestaurantSafety(restaurant._id, {
+        changedBy: payload.verifiedBy || "admin",
+        reason: "profile_saved",
+        previousRemarks: previous?.remarksByAdmin || ""
+      });
 
-    res.status(existing ? 200 : 201).json(enrichRestaurantForResponse(refreshed.restaurant));
+      return res.status(existing ? 200 : 201).json(enrichRestaurantForResponse(refreshed.restaurant));
+    }
+
+    res.status(existing ? 200 : 201).json(enrichRestaurantForResponse(restaurant));
   } catch (err) {
     console.error("restaurant save:", err);
     res.status(500).json({ message: "Failed to save restaurant" });
@@ -274,28 +294,117 @@ router.post("/:id/documents", requireDashboardUser, upload.single("file"), async
       uploadedBy: String(req.body.uploadedBy || "admin").trim()
     });
 
+    const previousScore = restaurant.hygieneScore;
+    const previousStatus = restaurant.kitchenVerificationStatus || "";
+
+    if (!req.auth.isPlatformAdmin) {
+      restaurant.kitchenVerificationStatus = "pending";
+      restaurant.hygieneScore = 0;
+      restaurant.scoreBand = "poor";
+      restaurant.lastVerifiedDate = null;
+      await restaurant.save();
+    }
+
     await createAuditEntry({
       restaurantId: restaurant._id,
       actionType: "document_uploaded",
       changedBy: document.uploadedBy,
-      previousScore: restaurant.hygieneScore,
+      previousScore,
       newScore: restaurant.hygieneScore,
       previousRemarks: restaurant.remarksByAdmin || "",
       newRemarks: restaurant.remarksByAdmin || "",
-      previousStatus: restaurant.kitchenVerificationStatus || "",
+      previousStatus,
       newStatus: restaurant.kitchenVerificationStatus || "",
       metadata: { documentType: type, documentId: String(document._id) }
     });
 
-    await recalculateRestaurantSafety(restaurant._id, {
-      changedBy: document.uploadedBy,
-      reason: "document_uploaded"
-    });
+    if (req.auth.isPlatformAdmin) {
+      await recalculateRestaurantSafety(restaurant._id, {
+        changedBy: document.uploadedBy,
+        reason: "document_uploaded"
+      });
+    }
 
     res.status(201).json({ ...document.toObject(), id: String(document._id) });
   } catch (err) {
     console.error("document upload:", err);
     res.status(500).json({ message: "Failed to upload document" });
+  }
+});
+
+router.post("/:id/approval", requireAdmin, async (req, res) => {
+  try {
+    const restaurant = await Restaurant.findById(req.params.id);
+    if (!restaurant) return res.status(404).json({ message: "Restaurant not found" });
+
+    const decision = String(req.body.decision || "").trim().toLowerCase();
+    if (!["approve", "reject"].includes(decision)) {
+      return res.status(400).json({ message: "decision must be approve or reject" });
+    }
+
+    const reviewer = String(req.body.verifiedBy || "platform_admin").trim();
+    const remarks = String(req.body.remarksByAdmin || "").trim();
+    const previousScore = restaurant.hygieneScore ?? null;
+    const previousStatus = restaurant.kitchenVerificationStatus || "";
+
+    restaurant.remarksByAdmin = remarks;
+    restaurant.verifiedBy = reviewer;
+
+    if (decision === "approve") {
+      restaurant.kitchenVerificationStatus = "verified";
+      await restaurant.save();
+
+      const refreshed = await recalculateRestaurantSafety(restaurant._id, {
+        changedBy: reviewer,
+        reason: "admin_approval",
+        previousRemarks: restaurant.remarksByAdmin || ""
+      });
+
+      await createAuditEntry({
+        restaurantId: restaurant._id,
+        actionType: "approval_reviewed",
+        changedBy: reviewer,
+        previousScore,
+        newScore: refreshed.restaurant.hygieneScore ?? null,
+        previousRemarks: "",
+        newRemarks: refreshed.restaurant.remarksByAdmin || "",
+        previousStatus,
+        newStatus: refreshed.restaurant.kitchenVerificationStatus || "",
+        metadata: { decision: "approved" }
+      });
+
+      return res.json({
+        restaurant: enrichRestaurantForResponse(refreshed.restaurant),
+        safety: refreshed.safety
+      });
+    }
+
+    restaurant.kitchenVerificationStatus = "rejected";
+    restaurant.hygieneScore = 0;
+    restaurant.scoreBand = "poor";
+    restaurant.lastVerifiedDate = null;
+    await restaurant.save();
+
+    await createAuditEntry({
+      restaurantId: restaurant._id,
+      actionType: "approval_reviewed",
+      changedBy: reviewer,
+      previousScore,
+      newScore: restaurant.hygieneScore ?? null,
+      previousRemarks: "",
+      newRemarks: restaurant.remarksByAdmin || "",
+      previousStatus,
+      newStatus: restaurant.kitchenVerificationStatus || "",
+      metadata: { decision: "rejected" }
+    });
+
+    res.json({
+      restaurant: enrichRestaurantForResponse(restaurant),
+      safety: null
+    });
+  } catch (err) {
+    console.error("restaurant approval:", err);
+    res.status(500).json({ message: "Failed to review restaurant approval" });
   }
 });
 
