@@ -40,9 +40,6 @@ const SECTION_DOCUMENT_KEYS = {
   packaging_safety: ["packagingPhoto"],
   pest_control: ["pestControlProofFile"]
 };
-const DOCUMENT_LABELS = Object.fromEntries(
-  VERIFICATION_DOCUMENTS.map((item) => [item.type, item.label])
-);
 const APPROVAL_SECTION_DEFINITIONS = [
   {
     id: "basic_business",
@@ -197,7 +194,6 @@ const emptyVerificationFiles = {
 
 const dateInput = (v) => (v ? String(v).slice(0, 10) : "");
 const tagsToInput = (tags) => (Array.isArray(tags) ? tags.join(", ") : typeof tags === "string" ? tags : "");
-const humanizeStatus = (value) => String(value || "pending").replaceAll("_", " ");
 const formatDisplayDate = (value) => {
   if (!value) return "Not available yet";
   const date = new Date(value);
@@ -208,36 +204,10 @@ const formatDisplayDate = (value) => {
     year: "numeric"
   });
 };
-const getStatusTone = (status) => {
-  if (status === "verified") return "approved";
-  if (status === "rejected" || status === "expired") return "attention";
-  if (status === "needs_reinspection") return "review";
-  return "pending";
-};
-const getStatusMessage = (status) => {
-  if (status === "verified") {
-    return "Your restaurant is approved and visible as verified in the platform.";
-  }
-  if (status === "rejected") {
-    return "Your last submission was not approved. Review the admin remarks, update the details, and send it again.";
-  }
-  if (status === "needs_reinspection") {
-    return "A fresh review is needed before the restaurant can return to a verified state.";
-  }
-  if (status === "expired") {
-    return "Some compliance details have expired. Update them and resubmit for review.";
-  }
-  return "Your submission is under review. You can still open the form and update any section if needed.";
-};
 const hasFieldValue = (value) => {
   if (typeof value === "boolean") return value;
   if (Array.isArray(value)) return value.length > 0;
   return String(value || "").trim().length > 0;
-};
-const formatReviewBadge = (status) => {
-  if (status === "passed") return "Passed";
-  if (status === "rejected") return "Rejected";
-  return "Pending";
 };
 
 export default function RestPanel() {
@@ -283,8 +253,6 @@ export default function RestPanel() {
   };
   const selectedRestaurantSummary = restaurants.find((item) => item.id === selectedRestaurantId) || null;
   const selectedRestaurant = selectedRestaurantDetail || selectedRestaurantSummary;
-  const approvalStatus = restaurantForm.kitchenVerificationStatus || selectedRestaurant?.kitchenVerificationStatus || "pending";
-  const approvalTone = getStatusTone(approvalStatus);
   const displayRestaurantName =
     selectedRestaurant?.name ||
     restaurantForm.name ||
@@ -484,15 +452,6 @@ export default function RestPanel() {
     () => approvalSections.filter((section) => section.workflow.status !== "draft"),
     [approvalSections]
   );
-  const approvalCounts = useMemo(
-    () => ({
-      passed: submittedApprovalSections.filter((section) => section.workflow.status === "approved").length,
-      rejected: submittedApprovalSections.filter((section) => section.workflow.status === "rejected").length,
-      pending: submittedApprovalSections.filter((section) => section.workflow.status === "pending").length
-    }),
-    [submittedApprovalSections]
-  );
-
   useEffect(() => {
     if (token) return;
     if (!isLoaded || !isSignedIn || !user) return;
@@ -806,93 +765,10 @@ export default function RestPanel() {
           <div className="admin-content-panel">
             {activeTab === "approval" ? (
               <div className="admin-approval-view">
-                <section className={`admin-approval-hero admin-approval-hero-${approvalTone}`}>
-                  <div className="admin-approval-hero-copy">
-                    <div className="admin-badge">Approval Status</div>
-                    <h2>{humanizeStatus(approvalStatus)}</h2>
-                    <p>{getStatusMessage(approvalStatus)}</p>
-                  </div>
-                  <div className="admin-approval-hero-stats">
-                    <div className="admin-score-card">
-                      <span>Approved headings</span>
-                      <strong>{approvalCounts.passed}</strong>
-                      <small>Reviewed and accepted</small>
-                    </div>
-                    <div className="admin-score-card">
-                      <span>Rejected headings</span>
-                      <strong>{approvalCounts.rejected}</strong>
-                      <small>Need updates before approval</small>
-                    </div>
-                    <div className="admin-score-card">
-                      <span>Pending headings</span>
-                      <strong>{approvalCounts.pending}</strong>
-                      <small>Waiting for admin review</small>
-                    </div>
-                  </div>
-                </section>
-
-                <section className="admin-approval-summary-grid">
-                  <div className="admin-panel-block admin-approval-highlight">
-                    <strong>Admin remarks</strong>
-                    <p>{restaurantForm.remarksByAdmin || "No remarks yet. Once the admin reviews this submission, feedback will appear here."}</p>
-                  </div>
-                  <div className="admin-panel-block admin-approval-meta-grid">
-                    <div>
-                      <span>Last verified</span>
-                      <strong>{formatDisplayDate(selectedRestaurant?.lastVerifiedDate)}</strong>
-                    </div>
-                    <div>
-                      <span>Hygiene score</span>
-                      <strong>{selectedRestaurant?.hygieneScore || 0}</strong>
-                    </div>
-                    <div>
-                      <span>Latest inspection</span>
-                      <strong>{formatDisplayDate(selectedRestaurant?.latestInspection?.inspectedAt || selectedRestaurant?.lastInspectionDate)}</strong>
-                    </div>
-                    <div>
-                      <span>Open complaints</span>
-                      <strong>{selectedRestaurant?.openComplaintCount || 0}</strong>
-                    </div>
-                  </div>
-                </section>
-
-                <section className="admin-panel-block">
-                  <div className="admin-form-header">
-                    <h2>Document review</h2>
-                    <p>Every uploaded file is listed here with its current review state.</p>
-                  </div>
-                  <div className="admin-checklist-grid">
-                    {approvalSections
-                      .filter((section) => section.workflow.status !== "draft")
-                      .flatMap((section) =>
-                        section.items
-                          .filter((item) => item.kind === "document")
-                          .map((item) => ({ ...item, sectionTitle: section.title }))
-                      )
-                      .map((item) => (
-                        <div key={item.type} className={`admin-review-item admin-review-item-${item.status}`}>
-                          <div className="admin-review-item-topline">
-                            <div>
-                              <strong>{item.label || DOCUMENT_LABELS[item.type] || item.type}</strong>
-                              <span>{item.sectionTitle}</span>
-                            </div>
-                            <span className={`admin-review-pill admin-review-pill-${item.status}`}>{formatReviewBadge(item.status)}</span>
-                          </div>
-                          <p>{item.detail}</p>
-                          {item.link ? (
-                            <a href={item.link} target="_blank" rel="noreferrer" className="admin-review-link">
-                              Open document
-                            </a>
-                          ) : null}
-                        </div>
-                      ))}
-                  </div>
-                </section>
-
                 <section className="admin-panel-block">
                   <div className="admin-form-header">
                     <h2>Submitted headings</h2>
-                    <p>Every heading you submit moves here for review. Rejected headings can be updated from this tab only.</p>
+                    <p>Only submitted headings are shown here. Rejected headings can be updated from this tab.</p>
                   </div>
                   <div className="admin-approval-section-list">
                     {submittedApprovalSections.map((section) => (
@@ -903,18 +779,6 @@ export default function RestPanel() {
                             <span>{SECTION_WORKFLOW_LABELS[section.workflow.status] || "Pending Review"}</span>
                           </div>
                           {section.workflow.status === "rejected" ? <button type="button" className="btn admin-secondary-button" onClick={() => openApprovalSectionEditor(section.id)}>Update</button> : null}
-                        </div>
-                        <div className="admin-approval-item-list">
-                          {section.items.map((item) => (
-                            <div key={`${section.id}-${item.label}`} className={`admin-review-item admin-review-item-${item.status}`}>
-                              <div className="admin-review-item-topline">
-                                <strong>{item.label}</strong>
-                                <span className={`admin-review-pill admin-review-pill-${item.status}`}>{formatReviewBadge(item.status)}</span>
-                              </div>
-                              <p>{item.detail}</p>
-                              {item.kind === "document" && item.link ? <a href={item.link} target="_blank" rel="noreferrer" className="admin-review-link">Open document</a> : null}
-                            </div>
-                          ))}
                         </div>
                         {section.workflow.adminRemarks ? <div className="admin-section-remarks">Admin note: {section.workflow.adminRemarks}</div> : null}
                       </article>

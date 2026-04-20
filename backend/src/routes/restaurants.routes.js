@@ -95,7 +95,15 @@ function syncSectionStatusFromDocuments(states = {}, sectionId, documents = []) 
   if (!VERIFICATION_SECTION_IDS.includes(sectionId)) return next;
 
   const sectionDocs = documents.filter((doc) => doc.sectionId === sectionId && doc.isActive !== false);
-  if (!sectionDocs.length) return next;
+  if (!sectionDocs.length) {
+    next[sectionId] = {
+      ...next[sectionId],
+      status: "rejected",
+      reviewedAt: new Date(),
+      lastUpdatedAt: new Date()
+    };
+    return next;
+  }
 
   const hasRejected = sectionDocs.some((doc) => doc.reviewStatus === "rejected");
   const allApproved = sectionDocs.every((doc) => doc.reviewStatus === "approved");
@@ -110,6 +118,16 @@ function syncSectionStatusFromDocuments(states = {}, sectionId, documents = []) 
   };
 
   return next;
+}
+
+function computeRestaurantStatusFromSections(states = {}) {
+  const normalized = normalizeVerificationSections(states);
+  const values = Object.values(normalized);
+
+  if (values.some((item) => item.status === "rejected")) return "rejected";
+  if (values.length && values.every((item) => item.status === "approved")) return "verified";
+  if (values.some((item) => item.status === "pending" || item.status === "approved")) return "pending";
+  return "pending";
 }
 
 function uploadToCloudinary(buffer, folder = "khanna-khazana/compliance") {
@@ -458,6 +476,7 @@ router.patch("/:id/documents/:documentId/review", requireAdmin, async (req, res)
     document.reviewedAt = new Date();
     document.reviewedBy = reviewer;
     document.adminRemarks = decision === "reject" ? remarks : "";
+    document.isActive = decision === "approve";
     await document.save();
 
     const activeDocuments = await RestaurantDocument.find({
@@ -470,6 +489,19 @@ router.patch("/:id/documents/:documentId/review", requireAdmin, async (req, res)
       document.sectionId,
       activeDocuments
     );
+
+    if (decision === "reject") {
+      restaurant.verificationSections = {
+        ...restaurant.verificationSections,
+        [document.sectionId]: {
+          ...(restaurant.verificationSections?.[document.sectionId] || {}),
+          status: "rejected",
+          reviewedAt: new Date(),
+          lastUpdatedAt: new Date(),
+          adminRemarks: remarks
+        }
+      };
+    }
 
     if (decision === "reject") {
       restaurant.kitchenVerificationStatus = "rejected";
@@ -514,6 +546,109 @@ router.patch("/:id/documents/:documentId/review", requireAdmin, async (req, res)
   } catch (err) {
     console.error("document review:", err);
     res.status(500).json({ message: "Failed to review document" });
+  }
+});
+
+router.patch("/:id/sections/:sectionId/review", requireAdmin, async (req, res) => {
+  try {
+    const restaurant = await Restaurant.findById(req.params.id);
+    if (!restaurant) return res.status(404).json({ message: "Restaurant not found" });
+
+    const sectionId = String(req.params.sectionId || "").trim();
+    if (!VERIFICATION_SECTION_IDS.includes(sectionId)) {
+      return res.status(400).json({ message: "Invalid section id" });
+    }
+
+    const decision = String(req.body.decision || "").trim().toLowerCase();
+    if (!["approve", "reject"].includes(decision)) {
+      return res.status(400).json({ message: "decision must be approve or reject" });
+    }
+
+    const reviewer = String(req.body.reviewedBy || "platform_admin").trim();
+    const remarks = String(req.body.adminRemarks || "").trim();
+    const sectionStates = normalizeVerificationSections(restaurant.verificationSections);
+    const previousStatus = sectionStates[sectionId]?.status || "draft";
+    const now = new Date();
+
+    sectionStates[sectionId] = {
+      ...sectionStates[sectionId],
+      status: decision === "approve" ? "approved" : "rejected",
+      reviewedAt: now,
+      lastUpdatedAt: now,
+      adminRemarks: decision === "reject" ? remarks : ""
+    };
+
+    const activeSectionDocuments = await RestaurantDocument.find({
+      restaurantId: restaurant._id,
+      sectionId,
+      isActive: true
+    }).sort({ createdAt: -1 });
+
+    if (activeSectionDocuments.length) {
+      for (const document of activeSectionDocuments) {
+        document.reviewStatus = decision === "approve" ? "approved" : "rejected";
+        document.reviewedAt = now;
+        document.reviewedBy = reviewer;
+        document.adminRemarks = decision === "reject" ? remarks : "";
+        if (decision === "reject") document.isActive = false;
+        await document.save();
+      }
+    }
+
+    restaurant.verificationSections = sectionStates;
+    restaurant.remarksByAdmin = decision === "reject" ? remarks || restaurant.remarksByAdmin || "" : restaurant.remarksByAdmin || "";
+    restaurant.kitchenVerificationStatus = computeRestaurantStatusFromSections(sectionStates);
+
+    if (restaurant.kitchenVerificationStatus === "verified") {
+      restaurant.verifiedBy = reviewer;
+      await restaurant.save();
+      const refreshed = await recalculateRestaurantSafety(restaurant._id, {
+        changedBy: reviewer,
+        reason: "section_approved",
+        previousRemarks: restaurant.remarksByAdmin || ""
+      });
+      return res.json({
+        restaurant: enrichRestaurantForResponse(refreshed.restaurant),
+        section: {
+          id: sectionId,
+          status: sectionStates[sectionId].status,
+          adminRemarks: sectionStates[sectionId].adminRemarks
+        }
+      });
+    }
+
+    if (decision === "reject") {
+      restaurant.hygieneScore = 0;
+      restaurant.scoreBand = "poor";
+      restaurant.lastVerifiedDate = null;
+    }
+
+    await restaurant.save();
+
+    await createAuditEntry({
+      restaurantId: restaurant._id,
+      actionType: "approval_reviewed",
+      changedBy: reviewer,
+      previousScore: restaurant.hygieneScore ?? null,
+      newScore: restaurant.hygieneScore ?? null,
+      previousRemarks: "",
+      newRemarks: restaurant.remarksByAdmin || "",
+      previousStatus,
+      newStatus: sectionStates[sectionId].status,
+      metadata: { sectionId, decision }
+    });
+
+    res.json({
+      restaurant: enrichRestaurantForResponse(restaurant),
+      section: {
+        id: sectionId,
+        status: sectionStates[sectionId].status,
+        adminRemarks: sectionStates[sectionId].adminRemarks
+      }
+    });
+  } catch (err) {
+    console.error("section review:", err);
+    res.status(500).json({ message: "Failed to review section" });
   }
 });
 

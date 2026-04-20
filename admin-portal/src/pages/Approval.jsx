@@ -4,13 +4,30 @@ import Toast from "../components/Toast";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "https://khanna-khazana-3.onrender.com";
 const REVIEWER_NAME = "platform_admin";
+const SECTION_DEFINITIONS = [
+  { id: "basic_business", label: "Basic Business Details", details: [{ type: "field", field: "contactNumber", label: "Contact number" }, { type: "field", field: "restaurantAddress", label: "Restaurant address" }] },
+  { id: "legal_compliance", label: "Legal and Compliance", details: [{ type: "field", field: "gstnNumber", label: "GSTN number" }, { type: "field", field: "fssaiLicenseNumber", label: "FSSAI number" }, { type: "field", field: "fssaiExpiryDate", label: "FSSAI expiry date" }, { type: "document", docType: "fssai_certificate", label: "FSSAI certificate" }] },
+  { id: "kitchen_proof", label: "Kitchen Proof", details: [{ type: "document", docType: "kitchen_cooking_area_photo", label: "Cooking area photo" }, { type: "document", docType: "kitchen_preparation_area_photo", label: "Preparation area photo" }, { type: "document", docType: "kitchen_storage_area_photo", label: "Storage area photo" }, { type: "document", docType: "kitchen_utensils_cleaning_area_photo", label: "Utensils/cleaning area photo" }] },
+  { id: "staff_hygiene", label: "Staff Hygiene", details: [{ type: "boolean", field: "staffUsesProtectiveGear", label: "Protective gear used" }, { type: "document", docType: "staff_hygiene_photo", label: "Staff hygiene photo" }] },
+  { id: "food_handling", label: "Food Handling and Storage", details: [{ type: "boolean", field: "rawAndCookedStoredSeparately", label: "Raw and cooked stored separately" }, { type: "boolean", field: "temperatureMaintainedProperly", label: "Temperature maintained properly" }, { type: "document", docType: "storage_fridge_photo", label: "Storage/fridge photo" }] },
+  { id: "packaging_safety", label: "Packaging Safety", details: [{ type: "field", field: "packagingType", label: "Packaging type" }, { type: "boolean", field: "sealedPackaging", label: "Sealed packaging" }, { type: "document", docType: "packaging_photo", label: "Packaging photo" }] },
+  { id: "pest_control", label: "Pest Control and Cleanliness", details: [{ type: "field", field: "lastPestControlDate", label: "Last pest control date" }, { type: "field", field: "wasteDisposalMethod", label: "Waste disposal method" }, { type: "document", docType: "pest_control_proof", label: "Pest control proof" }] },
+  { id: "water_safety", label: "Water and Ingredient Safety", details: [{ type: "field", field: "waterSource", label: "Water source" }, { type: "boolean", field: "cleanWaterUsedForCooking", label: "Clean water used for cooking" }] },
+  { id: "self_declaration", label: "Self Declaration", details: [{ type: "boolean", field: "selfDeclarationAccepted", label: "Self declaration accepted" }] }
+];
+const STATUS_PRIORITY = { pending: 0, rejected: 1, verified: 2, expired: 3, needs_reinspection: 4 };
+const SECTION_STATUS_LABELS = { draft: "Not Submitted", pending: "Pending", rejected: "Rejected", approved: "Passed" };
 
-const STATUS_PRIORITY = {
-  pending: 0,
-  needs_reinspection: 1,
-  rejected: 2,
-  expired: 3,
-  verified: 4
+const formatValue = (value, type) => {
+  if (!value && value !== false) return "Not submitted";
+  if (type === "boolean") return value ? "Yes" : "No";
+  if (String(value).match(/^\d{4}-\d{2}-\d{2}/)) {
+    const date = new Date(value);
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    }
+  }
+  return String(value);
 };
 
 function sortRestaurants(items = []) {
@@ -27,11 +44,10 @@ export default function Approval() {
   const [restaurants, setRestaurants] = useState([]);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState("");
   const [selectedRestaurant, setSelectedRestaurant] = useState(null);
-  const [remarks, setRemarks] = useState("");
-  const [documentRemarks, setDocumentRemarks] = useState({});
-  const [savingDocumentId, setSavingDocumentId] = useState("");
+  const [expandedSectionId, setExpandedSectionId] = useState("");
+  const [sectionRemarks, setSectionRemarks] = useState({});
+  const [savingSectionId, setSavingSectionId] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const [toast, setToast] = useState({ open: false, type: "success", title: "", message: "" });
 
   const showToast = (type, title, message) => setToast({ open: true, type, title, message });
@@ -50,11 +66,6 @@ export default function Approval() {
     return data;
   }, [adminToken]);
 
-  const pendingCount = useMemo(
-    () => restaurants.filter((item) => item.kitchenVerificationStatus === "pending").length,
-    [restaurants]
-  );
-
   const loadRestaurants = useCallback(async (preferredId = "") => {
     const data = sortRestaurants(await fetchJson(`${API_BASE}/api/restaurants`));
     setRestaurants(data);
@@ -66,25 +77,52 @@ export default function Approval() {
   const loadRestaurantDetail = useCallback(async (restaurantId) => {
     if (!restaurantId) {
       setSelectedRestaurant(null);
-      setRemarks("");
       return;
     }
 
     const detail = await fetchJson(`${API_BASE}/api/restaurants/${restaurantId}`);
     setSelectedRestaurant(detail);
-    setRemarks(detail.remarksByAdmin || "");
-    setDocumentRemarks(
-      Object.fromEntries((detail.documents || []).map((doc) => [doc.id, doc.adminRemarks || ""]))
+    setSectionRemarks(
+      Object.fromEntries(
+        SECTION_DEFINITIONS.map((section) => [
+          section.id,
+          detail.verificationSections?.[section.id]?.adminRemarks || ""
+        ])
+      )
     );
   }, [fetchJson]);
 
-  const documentCounts = useMemo(() => {
-    const documents = selectedRestaurant?.documents || [];
-    return {
-      approved: documents.filter((doc) => doc.reviewStatus === "approved").length,
-      rejected: documents.filter((doc) => doc.reviewStatus === "rejected").length,
-      pending: documents.filter((doc) => (doc.reviewStatus || "pending") === "pending").length
-    };
+  const pendingCount = useMemo(
+    () => restaurants.filter((item) => item.kitchenVerificationStatus === "pending").length,
+    [restaurants]
+  );
+
+  const submittedSections = useMemo(() => {
+    const sectionStates = selectedRestaurant?.verificationSections || {};
+    const documentMap = new Map((selectedRestaurant?.documents || []).map((doc) => [doc.type, doc]));
+
+    return SECTION_DEFINITIONS
+      .filter((section) => (sectionStates[section.id]?.status || "draft") !== "draft")
+      .map((section) => ({
+        ...section,
+        status: sectionStates[section.id]?.status || "draft",
+        adminRemarks: sectionStates[section.id]?.adminRemarks || "",
+        details: section.details.map((item) => {
+          if (item.type === "document") {
+            const document = documentMap.get(item.docType);
+            return {
+              ...item,
+              value: document?.fileUrl ? "Uploaded" : "Not available",
+              link: document?.fileUrl || ""
+            };
+          }
+
+          return {
+            ...item,
+            value: selectedRestaurant?.[item.field]
+          };
+        })
+      }));
   }, [selectedRestaurant]);
 
   useEffect(() => {
@@ -106,70 +144,33 @@ export default function Approval() {
     );
   }, [loadRestaurantDetail, selectedRestaurantId]);
 
-  const handleReview = async (decision) => {
-    if (!selectedRestaurantId) return;
+  const handleSectionReview = async (sectionId, decision) => {
+    if (!selectedRestaurantId || !sectionId) return;
 
     try {
-      setIsSaving(true);
-      const response = await fetchJson(`${API_BASE}/api/restaurants/${selectedRestaurantId}/approval`, {
-        method: "POST",
+      setSavingSectionId(sectionId);
+      await fetchJson(`${API_BASE}/api/restaurants/${selectedRestaurantId}/sections/${sectionId}/review`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           decision,
-          remarksByAdmin: remarks,
-          verifiedBy: REVIEWER_NAME
+          adminRemarks: sectionRemarks[sectionId] || "",
+          reviewedBy: REVIEWER_NAME
         })
       });
-
       await loadRestaurants(selectedRestaurantId);
       await loadRestaurantDetail(selectedRestaurantId);
-
-      const updatedRestaurant = response.restaurant || {};
-      showToast(
-        "success",
-        decision === "approve" ? "Restaurant approved" : "Restaurant rejected",
-        decision === "approve"
-          ? `${updatedRestaurant.name || "Restaurant"} is now live with score ${updatedRestaurant.hygieneScore || 0}.`
-          : `${updatedRestaurant.name || "Restaurant"} has been sent back for changes.`
-      );
+      showToast("success", decision === "approve" ? "Heading accepted" : "Heading rejected", "The heading review has been updated.");
     } catch (err) {
-      showToast("error", "Review failed", err.message || "Could not complete the review.");
+      showToast("error", "Section review failed", err.message || "Could not review the heading.");
     } finally {
-      setIsSaving(false);
+      setSavingSectionId("");
     }
   };
 
   const handleLogout = () => {
     localStorage.removeItem("admin_token");
     navigate("/admin-login", { replace: true });
-  };
-
-  const handleDocumentReview = async (documentId, decision) => {
-    if (!selectedRestaurantId || !documentId) return;
-
-    try {
-      setSavingDocumentId(documentId);
-      await fetchJson(`${API_BASE}/api/restaurants/${selectedRestaurantId}/documents/${documentId}/review`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          decision,
-          adminRemarks: documentRemarks[documentId] || "",
-          reviewedBy: REVIEWER_NAME
-        })
-      });
-      await loadRestaurants(selectedRestaurantId);
-      await loadRestaurantDetail(selectedRestaurantId);
-      showToast(
-        "success",
-        decision === "approve" ? "Document approved" : "Document rejected",
-        "The document review status has been updated."
-      );
-    } catch (err) {
-      showToast("error", "Document review failed", err.message || "Could not review the document.");
-    } finally {
-      setSavingDocumentId("");
-    }
   };
 
   return (
@@ -179,19 +180,15 @@ export default function Approval() {
           <div>
             <div className="admin-badge">Admin Approval</div>
             <h1>Restaurant approval desk</h1>
-            <p>Review submitted restaurant data, approve it for the main app, and publish the calculated hygiene score after approval.</p>
+            <p>Review each submitted heading one by one.</p>
             <div className="admin-panel-subheading">
               {pendingCount} pending review{pendingCount === 1 ? "" : "s"}
             </div>
           </div>
 
           <div className="admin-panel-actions">
-            <Link to="/" className="btn admin-secondary-button">
-              Back to entry
-            </Link>
-            <button type="button" className="btn admin-secondary-button" onClick={handleLogout}>
-              Logout
-            </button>
+            <Link to="/" className="btn admin-secondary-button">Back to entry</Link>
+            <button type="button" className="btn admin-secondary-button" onClick={handleLogout}>Logout</button>
           </div>
         </header>
 
@@ -199,7 +196,7 @@ export default function Approval() {
           <aside className="admin-side-panel">
             <div className="admin-form-header">
               <h2>Submitted restaurants</h2>
-              <p>Pending and reinspection cases are pinned to the top.</p>
+              <p>Choose a restaurant to review its submitted headings.</p>
             </div>
 
             <div className="admin-restaurant-list">
@@ -215,10 +212,6 @@ export default function Approval() {
                   <small>{String(item.kitchenVerificationStatus || "pending").replaceAll("_", " ")}</small>
                 </button>
               ))}
-
-              {!restaurants.length && !isLoading ? (
-                <div className="admin-empty-state">No restaurants are available for review right now.</div>
-              ) : null}
             </div>
           </aside>
 
@@ -226,122 +219,80 @@ export default function Approval() {
             {isLoading ? (
               <div className="admin-empty-state">Loading restaurant approvals...</div>
             ) : !selectedRestaurant ? (
-              <div className="admin-empty-state">Pick a restaurant to review its submission.</div>
+              <div className="admin-empty-state">Pick a restaurant to review its headings.</div>
             ) : (
-              <div className="admin-approval-shell">
-                <div className="admin-score-strip">
-                  <div className="admin-score-card">
-                    <span>Status</span>
-                    <strong>{String(selectedRestaurant.kitchenVerificationStatus || "pending").replaceAll("_", " ")}</strong>
-                    <small>Current workflow state</small>
-                  </div>
-                  <div className="admin-score-card">
-                    <span>Approved docs</span>
-                    <strong>{documentCounts.approved}</strong>
-                    <small>{documentCounts.rejected} rejected, {documentCounts.pending} pending</small>
-                  </div>
-                  <div className="admin-score-card">
-                    <span>Live score</span>
-                    <strong>{selectedRestaurant.hygieneScore || 0}</strong>
-                    <small>Visible only after approval</small>
-                  </div>
-                </div>
-
-                <div className="admin-approval-grid">
-                  <div className="admin-panel-block">
-                    <strong>{selectedRestaurant.name}</strong>
-                    <span>{selectedRestaurant.ownerName || selectedRestaurant.ownerDisplayName || "Owner not provided"}</span>
-                    <span>{selectedRestaurant.contactNumber || "No contact number"}</span>
-                    <span>{selectedRestaurant.restaurantAddress || selectedRestaurant.location || "No address provided"}</span>
-                    <span>FSSAI: {selectedRestaurant.fssaiLicenseNumber || "Not submitted"}</span>
-                    <span>GSTN: {selectedRestaurant.gstnNumber || "Not submitted"}</span>
-                  </div>
-
-                  <div className="admin-panel-block">
-                    <strong>Operational checks</strong>
-                    <span>Protective gear: {selectedRestaurant.staffUsesProtectiveGear ? "Yes" : "No"}</span>
-                    <span>Food stored separately: {selectedRestaurant.rawAndCookedStoredSeparately ? "Yes" : "No"}</span>
-                    <span>Temperature maintained: {selectedRestaurant.temperatureMaintainedProperly ? "Yes" : "No"}</span>
-                    <span>Sealed packaging: {selectedRestaurant.sealedPackaging ? "Yes" : "No"}</span>
-                    <span>Clean water used: {selectedRestaurant.cleanWaterUsedForCooking ? "Yes" : "No"}</span>
-                  </div>
-                </div>
-
+              <div className="admin-approval-view">
                 <div className="admin-panel-block">
-                  <strong>Uploaded documents</strong>
-                  <div className="admin-document-list">
-                    {(selectedRestaurant.documents || []).map((doc) => (
-                      <div key={doc.id} className="admin-document-card">
-                        <strong>{doc.label || doc.type}</strong>
-                        <span>{String(doc.type || "").replaceAll("_", " ")}</span>
-                        <small>Status: {String(doc.reviewStatus || "pending").replaceAll("_", " ")}</small>
-                        <a href={doc.fileUrl} target="_blank" rel="noreferrer" className="admin-review-link">
-                          Open document
-                        </a>
-                        <label className="admin-field admin-field-full">
-                          <span>Document remarks</span>
-                          <textarea
-                            rows={3}
-                            value={documentRemarks[doc.id] || ""}
-                            onChange={(e) =>
-                              setDocumentRemarks((current) => ({ ...current, [doc.id]: e.target.value }))
-                            }
-                            placeholder="Add document-specific feedback."
-                          />
-                        </label>
-                        <div className="admin-approval-actions">
-                          <button
-                            type="button"
-                            className={`btn btn-primary ${savingDocumentId === doc.id ? "is-loading" : ""}`}
-                            disabled={Boolean(savingDocumentId)}
-                            onClick={() => handleDocumentReview(doc.id, "approve")}
-                          >
-                            Approve document
-                          </button>
-                          <button
-                            type="button"
-                            className="btn admin-danger-button"
-                            disabled={Boolean(savingDocumentId)}
-                            onClick={() => handleDocumentReview(doc.id, "reject")}
-                          >
-                            Reject document
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                    {!selectedRestaurant.documents?.length ? (
-                      <div className="admin-empty-state">No documents uploaded yet.</div>
-                    ) : null}
-                  </div>
+                  <strong>{selectedRestaurant.name}</strong>
+                  <span>{selectedRestaurant.ownerName || selectedRestaurant.ownerDisplayName || "Owner not provided"}</span>
+                  <span>{selectedRestaurant.restaurantAddress || selectedRestaurant.location || "No address provided"}</span>
                 </div>
 
-                <label className="admin-field admin-field-full">
-                  <span>Admin remarks</span>
-                  <textarea
-                    rows={4}
-                    value={remarks}
-                    onChange={(e) => setRemarks(e.target.value)}
-                    placeholder="Add approval notes or rejection feedback for the restaurant."
-                  />
-                </label>
+                <div className="admin-approval-section-list">
+                  {submittedSections.map((section) => (
+                    <article key={section.id} className="admin-approval-section-card">
+                      <button
+                        type="button"
+                        className="admin-section-toggle"
+                        onClick={() => setExpandedSectionId((current) => current === section.id ? "" : section.id)}
+                      >
+                        <div>
+                          <strong>{section.label}</strong>
+                          <span>{SECTION_STATUS_LABELS[section.status] || "Pending"}</span>
+                        </div>
+                        <span className="admin-section-arrow">{expandedSectionId === section.id ? "▾" : "▸"}</span>
+                      </button>
 
-                <div className="admin-approval-actions">
-                  <button
-                    type="button"
-                    className={`btn btn-primary ${isSaving ? "is-loading" : ""}`}
-                    disabled={isSaving || documentCounts.pending > 0 || documentCounts.rejected > 0}
-                    onClick={() => handleReview("approve")}
-                  >
-                    Approve and publish score
-                  </button>
-                  <button
-                    type="button"
-                    className="btn admin-danger-button"
-                    disabled={isSaving}
-                    onClick={() => handleReview("reject")}
-                  >
-                    Reject submission
-                  </button>
+                      {expandedSectionId === section.id ? (
+                        <div className="admin-approval-section-content">
+                          <div className="admin-approval-item-list">
+                            {section.details.map((item) => (
+                              <div key={`${section.id}-${item.label}`} className="admin-review-item">
+                                <div className="admin-review-item-topline">
+                                  <strong>{item.label}</strong>
+                                </div>
+                                <p>{formatValue(item.value, item.type)}</p>
+                                {item.link ? <a href={item.link} target="_blank" rel="noreferrer" className="admin-review-link">Open file</a> : null}
+                              </div>
+                            ))}
+                          </div>
+
+                          <label className="admin-field admin-field-full">
+                            <span>Admin remarks</span>
+                            <textarea
+                              rows={3}
+                              value={sectionRemarks[section.id] || ""}
+                              onChange={(e) => setSectionRemarks((current) => ({ ...current, [section.id]: e.target.value }))}
+                              placeholder="Add heading-specific feedback."
+                            />
+                          </label>
+
+                          <div className="admin-approval-actions">
+                            <button
+                              type="button"
+                              className={`btn btn-primary ${savingSectionId === section.id ? "is-loading" : ""}`}
+                              disabled={Boolean(savingSectionId)}
+                              onClick={() => handleSectionReview(section.id, "approve")}
+                            >
+                              Accept
+                            </button>
+                            <button
+                              type="button"
+                              className="btn admin-danger-button"
+                              disabled={Boolean(savingSectionId)}
+                              onClick={() => handleSectionReview(section.id, "reject")}
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
+                    </article>
+                  ))}
+
+                  {!submittedSections.length ? (
+                    <div className="admin-empty-state">No submitted headings yet for this restaurant.</div>
+                  ) : null}
                 </div>
               </div>
             )}

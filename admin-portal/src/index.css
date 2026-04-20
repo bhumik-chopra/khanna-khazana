@@ -1052,6 +1052,30 @@ select {
   margin-bottom: 0.9rem;
 }
 
+.admin-section-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-section-arrow {
+  font-size: 1.1rem;
+  color: var(--muted);
+}
+
+.admin-approval-section-content {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 1rem;
+}
+
 .admin-approval-section-head strong,
 .admin-review-item-topline strong {
   display: block;
