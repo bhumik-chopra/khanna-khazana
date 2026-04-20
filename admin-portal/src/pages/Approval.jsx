@@ -28,6 +28,8 @@ export default function Approval() {
   const [selectedRestaurantId, setSelectedRestaurantId] = useState("");
   const [selectedRestaurant, setSelectedRestaurant] = useState(null);
   const [remarks, setRemarks] = useState("");
+  const [documentRemarks, setDocumentRemarks] = useState({});
+  const [savingDocumentId, setSavingDocumentId] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [toast, setToast] = useState({ open: false, type: "success", title: "", message: "" });
@@ -71,7 +73,19 @@ export default function Approval() {
     const detail = await fetchJson(`${API_BASE}/api/restaurants/${restaurantId}`);
     setSelectedRestaurant(detail);
     setRemarks(detail.remarksByAdmin || "");
+    setDocumentRemarks(
+      Object.fromEntries((detail.documents || []).map((doc) => [doc.id, doc.adminRemarks || ""]))
+    );
   }, [fetchJson]);
+
+  const documentCounts = useMemo(() => {
+    const documents = selectedRestaurant?.documents || [];
+    return {
+      approved: documents.filter((doc) => doc.reviewStatus === "approved").length,
+      rejected: documents.filter((doc) => doc.reviewStatus === "rejected").length,
+      pending: documents.filter((doc) => (doc.reviewStatus || "pending") === "pending").length
+    };
+  }, [selectedRestaurant]);
 
   useEffect(() => {
     if (!adminToken) {
@@ -128,6 +142,34 @@ export default function Approval() {
   const handleLogout = () => {
     localStorage.removeItem("admin_token");
     navigate("/admin-login", { replace: true });
+  };
+
+  const handleDocumentReview = async (documentId, decision) => {
+    if (!selectedRestaurantId || !documentId) return;
+
+    try {
+      setSavingDocumentId(documentId);
+      await fetchJson(`${API_BASE}/api/restaurants/${selectedRestaurantId}/documents/${documentId}/review`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          decision,
+          adminRemarks: documentRemarks[documentId] || "",
+          reviewedBy: REVIEWER_NAME
+        })
+      });
+      await loadRestaurants(selectedRestaurantId);
+      await loadRestaurantDetail(selectedRestaurantId);
+      showToast(
+        "success",
+        decision === "approve" ? "Document approved" : "Document rejected",
+        "The document review status has been updated."
+      );
+    } catch (err) {
+      showToast("error", "Document review failed", err.message || "Could not review the document.");
+    } finally {
+      setSavingDocumentId("");
+    }
   };
 
   return (
@@ -194,9 +236,9 @@ export default function Approval() {
                     <small>Current workflow state</small>
                   </div>
                   <div className="admin-score-card">
-                    <span>Documents</span>
-                    <strong>{selectedRestaurant.documents?.length || selectedRestaurant.documentCount || 0}</strong>
-                    <small>Uploaded compliance files</small>
+                    <span>Approved docs</span>
+                    <strong>{documentCounts.approved}</strong>
+                    <small>{documentCounts.rejected} rejected, {documentCounts.pending} pending</small>
                   </div>
                   <div className="admin-score-card">
                     <span>Live score</span>
@@ -229,16 +271,43 @@ export default function Approval() {
                   <strong>Uploaded documents</strong>
                   <div className="admin-document-list">
                     {(selectedRestaurant.documents || []).map((doc) => (
-                      <a
-                        key={doc.id}
-                        className="admin-document-card"
-                        href={doc.fileUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
+                      <div key={doc.id} className="admin-document-card">
                         <strong>{doc.label || doc.type}</strong>
                         <span>{String(doc.type || "").replaceAll("_", " ")}</span>
-                      </a>
+                        <small>Status: {String(doc.reviewStatus || "pending").replaceAll("_", " ")}</small>
+                        <a href={doc.fileUrl} target="_blank" rel="noreferrer" className="admin-review-link">
+                          Open document
+                        </a>
+                        <label className="admin-field admin-field-full">
+                          <span>Document remarks</span>
+                          <textarea
+                            rows={3}
+                            value={documentRemarks[doc.id] || ""}
+                            onChange={(e) =>
+                              setDocumentRemarks((current) => ({ ...current, [doc.id]: e.target.value }))
+                            }
+                            placeholder="Add document-specific feedback."
+                          />
+                        </label>
+                        <div className="admin-approval-actions">
+                          <button
+                            type="button"
+                            className={`btn btn-primary ${savingDocumentId === doc.id ? "is-loading" : ""}`}
+                            disabled={Boolean(savingDocumentId)}
+                            onClick={() => handleDocumentReview(doc.id, "approve")}
+                          >
+                            Approve document
+                          </button>
+                          <button
+                            type="button"
+                            className="btn admin-danger-button"
+                            disabled={Boolean(savingDocumentId)}
+                            onClick={() => handleDocumentReview(doc.id, "reject")}
+                          >
+                            Reject document
+                          </button>
+                        </div>
+                      </div>
                     ))}
                     {!selectedRestaurant.documents?.length ? (
                       <div className="admin-empty-state">No documents uploaded yet.</div>
@@ -260,7 +329,7 @@ export default function Approval() {
                   <button
                     type="button"
                     className={`btn btn-primary ${isSaving ? "is-loading" : ""}`}
-                    disabled={isSaving}
+                    disabled={isSaving || documentCounts.pending > 0 || documentCounts.rejected > 0}
                     onClick={() => handleReview("approve")}
                   >
                     Approve and publish score

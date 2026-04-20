@@ -28,11 +28,20 @@ const restaurantDocumentSchema = new mongoose.Schema(
       required: true
     },
     label: { type: String, default: "" },
+    sectionId: { type: String, default: "" },
     fileUrl: { type: String, required: true },
     filePublicId: { type: String, required: true },
     mimeType: { type: String, default: "" },
     uploadedBy: { type: String, default: "admin" },
-    isActive: { type: Boolean, default: true }
+    isActive: { type: Boolean, default: true },
+    reviewStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending"
+    },
+    reviewedAt: { type: Date, default: null },
+    reviewedBy: { type: String, default: "" },
+    adminRemarks: { type: String, default: "" }
   },
   { timestamps: true }
 );

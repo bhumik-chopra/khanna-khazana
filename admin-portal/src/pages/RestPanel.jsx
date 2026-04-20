@@ -270,6 +270,7 @@ export default function RestPanel() {
   const [approvalEditForm, setApprovalEditForm] = useState(emptyRestaurant);
   const [approvalEditFiles, setApprovalEditFiles] = useState(emptyVerificationFiles);
   const [isApprovalEditSaving, setIsApprovalEditSaving] = useState(false);
+  const [addDishFormKey, setAddDishFormKey] = useState(0);
 
   const showToast = (type, title, message) => setToast({ open: true, type, title, message });
   const logout = async () => {
@@ -364,7 +365,9 @@ export default function RestPanel() {
   const loadDishes = async () => setDishes(await fetchJson(`${API_BASE}/api/dishes`));
   const loadCategories = async () => {
     const data = await fetchJson(`${API_BASE}/api/dishes/categories`);
-    setCategories((data || []).filter((item) => item && item !== "All"));
+    const nextCategories = (data || []).filter((item) => item && item !== "All");
+    setCategories(nextCategories);
+    return nextCategories;
   };
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -384,6 +387,10 @@ export default function RestPanel() {
     setAddForm((prev) => ({ ...prev, selectedCategory: prev.selectedCategory || categories[0] }));
     setUpdateForm((prev) => ({ ...prev, selectedCategory: prev.selectedCategory || categories[0] }));
   }, [categories, selectedRestaurantId, restaurants]);
+  useEffect(() => {
+    if (categories.length) return;
+    setAddForm((prev) => ({ ...prev, categoryMode: "new", selectedCategory: "" }));
+  }, [categories.length]);
   const sectionWorkflowStates = useMemo(
     () => normalizeSectionWorkflowStates(selectedRestaurant?.verificationSections),
     [selectedRestaurant]
@@ -415,22 +422,23 @@ export default function RestPanel() {
             const document = approvalDocuments.get(item.type);
             const passed = Boolean(document);
             const status =
-              workflow.status === "approved"
+              document?.reviewStatus === "approved"
                 ? "passed"
-                : workflow.status === "rejected"
+                : document?.reviewStatus === "rejected"
                   ? "rejected"
-                  : workflow.status === "pending"
-                    ? passed ? "passed" : "pending"
-                    : "pending";
+                  : "pending";
             return {
               ...item,
               status,
               detail: passed
-                ? `Uploaded ${formatDisplayDate(document.createdAt)}`
-                : status === "rejected"
-                  ? "Not uploaded in the rejected review"
-                  : "Awaiting upload",
-              link: document?.fileUrl || ""
+                ? document.reviewStatus === "rejected"
+                  ? (document.adminRemarks || `Rejected on ${formatDisplayDate(document.reviewedAt)}`)
+                  : document.reviewStatus === "approved"
+                    ? `Approved ${formatDisplayDate(document.reviewedAt || document.createdAt)}`
+                    : `Uploaded ${formatDisplayDate(document.createdAt)} and waiting for review`
+                : "Awaiting upload",
+              link: document?.fileUrl || "",
+              adminRemarks: document?.adminRemarks || ""
             };
           }
 
@@ -662,8 +670,16 @@ export default function RestPanel() {
       const data = await fetchJson(url, { method, body: buildDishFormData(form, category) });
       showToast("success", mode === "add" ? "Dish added" : "Dish updated", `${data.name} saved.`);
       await loadDishes();
-      await loadCategories();
-      if (mode === "add") setAddForm({ ...emptyDish, selectedCategory: categories[0] || "" });
+      const refreshedCategories = await loadCategories();
+      if (mode === "add") {
+        setAddForm({
+          ...emptyDish,
+          categoryMode: refreshedCategories.length ? "existing" : "new",
+          selectedCategory: "",
+          newCategory: ""
+        });
+        setAddDishFormKey((current) => current + 1);
+      }
       if (mode === "update") setEditingDishId(data.id);
     } catch (err) { showToast("error", "Dish save failed", err.message); }
   };
@@ -945,7 +961,7 @@ export default function RestPanel() {
               <div className="admin-remove-shell">
                 <div className="admin-form-header"><h2>{activeTab === "add" ? "Add dish" : activeTab === "update" ? "Update dishes" : "Remove dishes"}</h2><p>Dishes are linked automatically to the restaurant account that is currently logged in.</p></div>
                 {activeTab !== "add" ? <div className="admin-search-row"><input className="admin-search-input" value={dishSearch} onChange={(e) => setDishSearch(e.target.value)} placeholder="Search by name or category" /><button className="btn admin-secondary-button" onClick={() => loadDishes().catch(() => {})}>Refresh</button></div> : null}
-                {activeTab === "add" || editingDishId ? <form onSubmit={(e) => saveDish(e, activeTab === "add" ? "add" : "update")} className="admin-form admin-grid-form"><label className="admin-field admin-field-full"><span>Dish name</span><input value={(activeTab === "add" ? addForm : updateForm).name} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, name: e.target.value }))} /></label><label className="admin-field admin-field-full"><span>Description</span><textarea rows={4} value={(activeTab === "add" ? addForm : updateForm).description} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, description: e.target.value }))} /></label><label className="admin-field"><span>Price</span><input type="number" value={(activeTab === "add" ? addForm : updateForm).price} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, price: e.target.value }))} /></label><label className="admin-field"><span>Restaurant</span><input value={displayRestaurantName} disabled /></label><label className="admin-field"><span>Category mode</span><select value={(activeTab === "add" ? addForm : updateForm).categoryMode} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, categoryMode: e.target.value }))}><option value="existing">existing</option><option value="new">new</option></select></label>{((activeTab === "add" ? addForm : updateForm).categoryMode === "existing") ? <label className="admin-field"><span>Category</span><select value={(activeTab === "add" ? addForm : updateForm).selectedCategory} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, selectedCategory: e.target.value }))}>{categories.map((item) => <option key={item} value={item}>{item}</option>)}</select></label> : <label className="admin-field"><span>New category</span><input value={(activeTab === "add" ? addForm : updateForm).newCategory} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, newCategory: e.target.value }))} /></label>}<label className="admin-field"><span>Prep time</span><input value={(activeTab === "add" ? addForm : updateForm).prepTime} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, prepTime: e.target.value }))} /></label><label className="admin-field admin-field-full"><span>Tags</span><input value={(activeTab === "add" ? addForm : updateForm).tags} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, tags: e.target.value }))} /></label><label className="admin-checkbox"><input type="checkbox" checked={(activeTab === "add" ? addForm : updateForm).isBestseller} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, isBestseller: e.target.checked }))} /><span>Highlight as bestseller</span></label><label className="admin-field admin-field-full"><span>{activeTab === "add" ? "Dish image" : "Replace dish image"}</span><input type="file" accept="image/*" onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, image: e.target.files?.[0] || null }))} /></label><button className="btn btn-primary admin-button-full">{activeTab === "add" ? "Save dish" : "Update dish"}</button></form> : <div className="admin-empty-state">Pick a dish below to edit it.</div>}
+                {activeTab === "add" || editingDishId ? <form key={activeTab === "add" ? addDishFormKey : editingDishId} onSubmit={(e) => saveDish(e, activeTab === "add" ? "add" : "update")} className="admin-form admin-grid-form"><label className="admin-field admin-field-full"><span>Dish name</span><input value={(activeTab === "add" ? addForm : updateForm).name} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, name: e.target.value }))} /></label><label className="admin-field admin-field-full"><span>Description</span><textarea rows={4} value={(activeTab === "add" ? addForm : updateForm).description} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, description: e.target.value }))} /></label><label className="admin-field"><span>Price</span><input type="number" value={(activeTab === "add" ? addForm : updateForm).price} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, price: e.target.value }))} /></label><label className="admin-field"><span>Restaurant</span><input value={displayRestaurantName} disabled /></label><label className="admin-field"><span>Category mode</span><select value={(activeTab === "add" ? addForm : updateForm).categoryMode} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, categoryMode: e.target.value }))}><option value="existing" disabled={!categories.length}>existing</option><option value="new">new</option></select></label>{((activeTab === "add" ? addForm : updateForm).categoryMode === "existing") ? <label className="admin-field"><span>Category</span><select value={(activeTab === "add" ? addForm : updateForm).selectedCategory} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, selectedCategory: e.target.value }))} disabled={!categories.length}><option value="">{categories.length ? "Select existing category" : "No existing categories yet"}</option>{categories.map((item) => <option key={item} value={item}>{item}</option>)}</select></label> : <label className="admin-field"><span>New category</span><input value={(activeTab === "add" ? addForm : updateForm).newCategory} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, newCategory: e.target.value }))} /></label>}<label className="admin-field"><span>Prep time</span><input value={(activeTab === "add" ? addForm : updateForm).prepTime} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, prepTime: e.target.value }))} /></label><label className="admin-field admin-field-full"><span>Tags</span><input value={(activeTab === "add" ? addForm : updateForm).tags} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, tags: e.target.value }))} /></label><label className="admin-checkbox"><input type="checkbox" checked={(activeTab === "add" ? addForm : updateForm).isBestseller} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, isBestseller: e.target.checked }))} /><span>Highlight as bestseller</span></label><label className="admin-field admin-field-full"><span>{activeTab === "add" ? "Dish image" : "Replace dish image"}</span><input type="file" accept="image/*" onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, image: e.target.files?.[0] || null }))} /></label><button className="btn btn-primary admin-button-full">{activeTab === "add" ? "Save dish" : "Update dish"}</button></form> : <div className="admin-empty-state">Pick a dish below to edit it.</div>}
                 {activeTab !== "add" ? <div className="admin-dish-list">{filteredDishes.map((dish) => <div key={dish.id || dish._id} className={`admin-dish-row ${editingDishId === (dish.id || dish._id) ? "is-selected" : ""}`}><div><div className="admin-dish-name">{dish.name}</div><div className="admin-dish-meta">{dish.category} / Rs {dish.price} / {dish.restaurant?.name || "No restaurant"}</div></div>{activeTab === "remove" ? <button type="button" className="btn admin-danger-button" onClick={() => setDeleteTarget(dish)}>Delete</button> : <button type="button" className="btn admin-secondary-button" onClick={() => selectDish(dish)}>Edit</button>}</div>)}</div> : null}
               </div>
             ) : null}

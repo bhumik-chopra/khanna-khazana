@@ -31,6 +31,7 @@ const VERIFICATION_SECTION_IDS = [
   "self_declaration"
 ];
 const SECTION_WORKFLOW_STATUSES = ["draft", "pending", "rejected", "approved"];
+const DOCUMENT_REVIEW_STATUSES = ["pending", "approved", "rejected"];
 
 function parseBoolean(value) {
   if (typeof value === "boolean") return value;
@@ -85,6 +86,28 @@ function applyApprovalDecisionToSections(states = {}, decision, remarks = "") {
       adminRemarks: decision === "reject" ? remarks : ""
     };
   });
+
+  return next;
+}
+
+function syncSectionStatusFromDocuments(states = {}, sectionId, documents = []) {
+  const next = normalizeVerificationSections(states);
+  if (!VERIFICATION_SECTION_IDS.includes(sectionId)) return next;
+
+  const sectionDocs = documents.filter((doc) => doc.sectionId === sectionId && doc.isActive !== false);
+  if (!sectionDocs.length) return next;
+
+  const hasRejected = sectionDocs.some((doc) => doc.reviewStatus === "rejected");
+  const allApproved = sectionDocs.every((doc) => doc.reviewStatus === "approved");
+  const latestRemarks = sectionDocs.find((doc) => doc.reviewStatus === "rejected" && doc.adminRemarks)?.adminRemarks || "";
+
+  next[sectionId] = {
+    ...next[sectionId],
+    status: hasRejected ? "rejected" : allApproved ? "approved" : "pending",
+    reviewedAt: new Date(),
+    lastUpdatedAt: new Date(),
+    adminRemarks: hasRejected ? latestRemarks : ""
+  };
 
   return next;
 }
@@ -348,14 +371,28 @@ router.post("/:id/documents", requireDashboardUser, upload.single("file"), async
 
     const uploaded = await uploadToCloudinary(req.file.buffer);
 
+    await RestaurantDocument.updateMany(
+      {
+        restaurantId: restaurant._id,
+        type,
+        isActive: true
+      },
+      { $set: { isActive: false } }
+    );
+
     const document = await RestaurantDocument.create({
       restaurantId: restaurant._id,
       type,
+      sectionId: String(req.body.sectionId || "").trim(),
       label: String(req.body.label || req.file.originalname || type).trim(),
       fileUrl: uploaded.secure_url,
       filePublicId: uploaded.public_id,
       mimeType: req.file.mimetype,
-      uploadedBy: String(req.body.uploadedBy || "admin").trim()
+      uploadedBy: String(req.body.uploadedBy || "admin").trim(),
+      reviewStatus: "pending",
+      reviewedAt: null,
+      reviewedBy: "",
+      adminRemarks: ""
     });
 
     const previousScore = restaurant.hygieneScore;
@@ -393,6 +430,90 @@ router.post("/:id/documents", requireDashboardUser, upload.single("file"), async
   } catch (err) {
     console.error("document upload:", err);
     res.status(500).json({ message: "Failed to upload document" });
+  }
+});
+
+router.patch("/:id/documents/:documentId/review", requireAdmin, async (req, res) => {
+  try {
+    const restaurant = await Restaurant.findById(req.params.id);
+    if (!restaurant) return res.status(404).json({ message: "Restaurant not found" });
+
+    const document = await RestaurantDocument.findOne({
+      _id: req.params.documentId,
+      restaurantId: req.params.id,
+      isActive: true
+    });
+    if (!document) return res.status(404).json({ message: "Document not found" });
+
+    const decision = String(req.body.decision || "").trim().toLowerCase();
+    if (!["approve", "reject"].includes(decision)) {
+      return res.status(400).json({ message: "decision must be approve or reject" });
+    }
+
+    const reviewer = String(req.body.reviewedBy || "platform_admin").trim();
+    const remarks = String(req.body.adminRemarks || "").trim();
+    const previousStatus = document.reviewStatus || "pending";
+
+    document.reviewStatus = decision === "approve" ? "approved" : "rejected";
+    document.reviewedAt = new Date();
+    document.reviewedBy = reviewer;
+    document.adminRemarks = decision === "reject" ? remarks : "";
+    await document.save();
+
+    const activeDocuments = await RestaurantDocument.find({
+      restaurantId: restaurant._id,
+      isActive: true
+    }).sort({ createdAt: -1 });
+
+    restaurant.verificationSections = syncSectionStatusFromDocuments(
+      restaurant.verificationSections,
+      document.sectionId,
+      activeDocuments
+    );
+
+    if (decision === "reject") {
+      restaurant.kitchenVerificationStatus = "rejected";
+      restaurant.remarksByAdmin = remarks || restaurant.remarksByAdmin || "";
+      restaurant.hygieneScore = 0;
+      restaurant.scoreBand = "poor";
+      restaurant.lastVerifiedDate = null;
+    } else {
+      const hasAnyRejected = activeDocuments.some((item) => item.reviewStatus === "rejected");
+      const hasPendingDocs = activeDocuments.some((item) => item.reviewStatus !== "approved");
+      if (hasAnyRejected) {
+        restaurant.kitchenVerificationStatus = "rejected";
+      } else if (hasPendingDocs) {
+        restaurant.kitchenVerificationStatus = "pending";
+      }
+    }
+
+    await restaurant.save();
+
+    await createAuditEntry({
+      restaurantId: restaurant._id,
+      actionType: "approval_reviewed",
+      changedBy: reviewer,
+      previousScore: restaurant.hygieneScore ?? null,
+      newScore: restaurant.hygieneScore ?? null,
+      previousRemarks: "",
+      newRemarks: restaurant.remarksByAdmin || "",
+      previousStatus,
+      newStatus: document.reviewStatus,
+      metadata: {
+        decision,
+        documentId: String(document._id),
+        documentType: document.type,
+        sectionId: document.sectionId
+      }
+    });
+
+    res.json({
+      document: { ...document.toObject(), id: String(document._id) },
+      restaurant: enrichRestaurantForResponse(restaurant)
+    });
+  } catch (err) {
+    console.error("document review:", err);
+    res.status(500).json({ message: "Failed to review document" });
   }
 });
 
