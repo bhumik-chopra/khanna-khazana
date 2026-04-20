@@ -56,6 +56,13 @@ function normalizeVerificationSections(states = {}) {
   }, {});
 }
 
+function isPastDate(value) {
+  if (!value) return false;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  return date < new Date();
+}
+
 function markSectionSubmitted(states = {}, sectionId) {
   const next = normalizeVerificationSections(states);
   if (!VERIFICATION_SECTION_IDS.includes(sectionId)) return next;
@@ -124,10 +131,37 @@ function computeRestaurantStatusFromSections(states = {}) {
   const normalized = normalizeVerificationSections(states);
   const values = Object.values(normalized);
 
-  if (values.some((item) => item.status === "rejected")) return "rejected";
-  if (values.length && values.every((item) => item.status === "approved")) return "verified";
+  const submittedValues = values.filter((item) => item.status !== "draft");
+  if (submittedValues.length && submittedValues.every((item) => item.status === "approved")) return "verified";
   if (values.some((item) => item.status === "pending" || item.status === "approved")) return "pending";
   return "pending";
+}
+
+function applyLegalComplianceExpiry(states = {}, fssaiExpiryDate) {
+  const next = normalizeVerificationSections(states);
+
+  if (isPastDate(fssaiExpiryDate)) {
+    next.legal_compliance = {
+      ...next.legal_compliance,
+      status: "rejected",
+      reviewedAt: new Date(),
+      lastUpdatedAt: new Date(),
+      adminRemarks: "FSSAI expiry date has passed. Update the legal/FSSAI heading."
+    };
+    return next;
+  }
+
+  if (next.legal_compliance.status === "rejected" && String(next.legal_compliance.adminRemarks || "").includes("FSSAI expiry date has passed")) {
+    next.legal_compliance = {
+      ...next.legal_compliance,
+      status: next.legal_compliance.submittedAt ? "pending" : "draft",
+      reviewedAt: null,
+      lastUpdatedAt: new Date(),
+      adminRemarks: ""
+    };
+  }
+
+  return next;
 }
 
 function uploadToCloudinary(buffer, folder = "khanna-khazana/compliance") {
@@ -288,6 +322,12 @@ router.post("/", requireDashboardUser, async (req, res) => {
     const acceptedDeclaration = parseBoolean(selfDeclarationAccepted);
 
     const isPlatformAdmin = req.auth.isPlatformAdmin;
+    const nextVerificationSections = applyLegalComplianceExpiry(
+      req.auth.isPlatformAdmin
+        ? normalizeVerificationSections(existing?.verificationSections)
+        : markSectionSubmitted(existing?.verificationSections, String(submittedSectionId || "").trim()),
+      fssaiExpiryDate
+    );
     const payload = {
       name: String(name).trim(),
       slug: slugify(name),
@@ -310,8 +350,8 @@ router.post("/", requireDashboardUser, async (req, res) => {
       cleanWaterUsedForCooking: usesCleanWater,
       selfDeclarationAccepted: acceptedDeclaration,
       kitchenVerificationStatus: isPlatformAdmin
-        ? kitchenVerificationStatus || existing?.kitchenVerificationStatus || "pending"
-        : "pending",
+        ? kitchenVerificationStatus || computeRestaurantStatusFromSections(nextVerificationSections)
+        : computeRestaurantStatusFromSections(nextVerificationSections),
       lastInspectionDate: lastInspectionDate || null,
       nextInspectionDate: nextInspectionDate || null,
       packagingStatus:
@@ -322,9 +362,7 @@ router.post("/", requireDashboardUser, async (req, res) => {
         foodHandlingStatus || (storesFoodSeparately && maintainsTemperature ? "good" : "poor"),
       remarksByAdmin: String(remarksByAdmin || "").trim(),
       verifiedBy: String(verifiedBy || "admin").trim(),
-      verificationSections: req.auth.isPlatformAdmin
-        ? normalizeVerificationSections(existing?.verificationSections)
-        : markSectionSubmitted(existing?.verificationSections, String(submittedSectionId || "").trim()),
+      verificationSections: nextVerificationSections,
       ownerClerkUserId: req.auth.isPlatformAdmin
         ? existing?.ownerClerkUserId || ""
         : req.auth.clerkUserId,

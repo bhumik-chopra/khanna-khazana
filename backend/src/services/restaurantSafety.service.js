@@ -14,6 +14,75 @@ function slugify(value) {
     .replace(/^-+|-+$/g, "");
 }
 
+function normalizeVerificationSections(states = {}) {
+  const sectionIds = [
+    "basic_business",
+    "legal_compliance",
+    "kitchen_proof",
+    "staff_hygiene",
+    "food_handling",
+    "packaging_safety",
+    "pest_control",
+    "water_safety",
+    "self_declaration"
+  ];
+
+  return sectionIds.reduce((acc, sectionId) => {
+    const current = states?.[sectionId] || {};
+    acc[sectionId] = {
+      status: ["draft", "pending", "rejected", "approved"].includes(current.status) ? current.status : "draft",
+      submittedAt: current.submittedAt || null,
+      reviewedAt: current.reviewedAt || null,
+      lastUpdatedAt: current.lastUpdatedAt || null,
+      adminRemarks: current.adminRemarks || ""
+    };
+    return acc;
+  }, {});
+}
+
+function isPastDate(value) {
+  if (!value) return false;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  return date < new Date();
+}
+
+function applyLegalComplianceExpiry(states = {}, fssaiExpiryDate) {
+  const next = normalizeVerificationSections(states);
+
+  if (isPastDate(fssaiExpiryDate)) {
+    next.legal_compliance = {
+      ...next.legal_compliance,
+      status: "rejected",
+      reviewedAt: new Date(),
+      lastUpdatedAt: new Date(),
+      adminRemarks: "FSSAI expiry date has passed. Update the legal/FSSAI heading."
+    };
+    return next;
+  }
+
+  if (next.legal_compliance.status === "rejected" && String(next.legal_compliance.adminRemarks || "").includes("FSSAI expiry date has passed")) {
+    next.legal_compliance = {
+      ...next.legal_compliance,
+      status: next.legal_compliance.submittedAt ? "pending" : "draft",
+      reviewedAt: null,
+      lastUpdatedAt: new Date(),
+      adminRemarks: ""
+    };
+  }
+
+  return next;
+}
+
+function computeRestaurantStatusFromSections(states = {}) {
+  const normalized = normalizeVerificationSections(states);
+  const values = Object.values(normalized);
+  const submittedValues = values.filter((item) => item.status !== "draft");
+
+  if (submittedValues.length && submittedValues.every((item) => item.status === "approved")) return "verified";
+  return "pending";
+}
+
 async function createAuditEntry({
   restaurantId,
   actionType,
@@ -89,10 +158,15 @@ async function recalculateRestaurantSafety(restaurantId, metadata = {}) {
 
   restaurant.hygieneScore = safety.totalScore;
   restaurant.scoreBand = safety.scoreBand;
+  restaurant.verificationSections = applyLegalComplianceExpiry(
+    restaurant.verificationSections,
+    restaurant.fssaiExpiryDate
+  );
+  restaurant.kitchenVerificationStatus = computeRestaurantStatusFromSections(
+    restaurant.verificationSections
+  );
 
-  if (restaurant.fssaiExpiryDate && new Date(restaurant.fssaiExpiryDate) < new Date()) {
-    restaurant.kitchenVerificationStatus = "expired";
-  } else if (restaurant.kitchenVerificationStatus === "verified" && safety.totalScore < 80) {
+  if (restaurant.kitchenVerificationStatus === "verified" && safety.totalScore < 80) {
     restaurant.kitchenVerificationStatus = "needs_reinspection";
   }
 
@@ -133,14 +207,16 @@ function enrichRestaurantForResponse(restaurant, extras = {}) {
   if (!restaurant) return null;
 
   const json = restaurant.toObject ? restaurant.toObject() : { ...restaurant };
+  const displayStatus = json.kitchenVerificationStatus === "expired" ? "pending" : json.kitchenVerificationStatus;
 
   return {
     ...json,
+    kitchenVerificationStatus: displayStatus,
     id: String(json._id || json.id),
     documentCount: extras.documentCount ?? json.documentCount ?? 0,
     openComplaintCount: extras.openComplaintCount ?? json.openComplaintCount ?? 0,
     badges: {
-      verifiedKitchen: json.kitchenVerificationStatus === "verified",
+      verifiedKitchen: displayStatus === "verified",
       hygieneChecked: Boolean(json.lastInspectionDate),
       recentlyAudited: Boolean(
         json.lastInspectionDate &&
