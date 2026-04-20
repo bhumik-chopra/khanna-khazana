@@ -1057,6 +1057,15 @@ select {
   display: block;
 }
 
+.admin-section-remarks {
+  margin-top: 0.9rem;
+  padding: 0.9rem 1rem;
+  border-radius: 16px;
+  background: rgba(255, 75, 66, 0.08);
+  color: #9a312b;
+  line-height: 1.6;
+}
+
 .admin-review-item {
   display: grid;
   gap: 0.45rem;
@@ -1170,6 +1179,10 @@ select {
 .confirm-dialog-card {
   width: min(100%, 480px);
   padding: 1.5rem;
+}
+
+.admin-section-modal {
+  width: min(100%, 820px);
 }
 
 .confirm-dialog-badge {

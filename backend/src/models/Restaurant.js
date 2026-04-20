@@ -59,7 +59,8 @@ const restaurantSchema = new mongoose.Schema(
       default: "unchecked"
     },
     remarksByAdmin: { type: String, default: "" },
-    verifiedBy: { type: String, default: "" }
+    verifiedBy: { type: String, default: "" },
+    verificationSections: { type: mongoose.Schema.Types.Mixed, default: {} }
   },
   { timestamps: true }
 );

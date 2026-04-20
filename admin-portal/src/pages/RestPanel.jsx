@@ -123,6 +123,35 @@ const APPROVAL_SECTION_DEFINITIONS = [
     ]
   }
 ];
+const SECTION_WORKFLOW_LABELS = {
+  draft: "Not Submitted",
+  pending: "Pending Review",
+  rejected: "Rejected",
+  approved: "Approved"
+};
+const createEmptySectionWorkflowStates = () =>
+  VERIFICATION_SECTIONS.reduce((acc, section) => {
+    acc[section.id] = {
+      status: "draft",
+      submittedAt: null,
+      reviewedAt: null,
+      lastUpdatedAt: null,
+      adminRemarks: ""
+    };
+    return acc;
+  }, {});
+const normalizeSectionWorkflowStates = (states = {}) => {
+  const next = createEmptySectionWorkflowStates();
+  Object.keys(next).forEach((sectionId) => {
+    const current = states?.[sectionId] || {};
+    next[sectionId] = {
+      ...next[sectionId],
+      ...current,
+      status: ["draft", "pending", "rejected", "approved"].includes(current.status) ? current.status : "draft"
+    };
+  });
+  return next;
+};
 
 const emptyRestaurant = {
   id: "",
@@ -152,7 +181,7 @@ const emptyRestaurant = {
   remarksByAdmin: "",
   verifiedBy: "admin"
 };
-const emptyDish = { name: "", description: "", price: "", image: null, prepTime: "25-35 min", tags: "", isBestseller: false, categoryMode: "existing", selectedCategory: "", newCategory: "", restaurantId: "" };
+const emptyDish = { name: "", description: "", price: "", image: null, prepTime: "25-35 min", tags: "", isBestseller: false, categoryMode: "existing", selectedCategory: "", newCategory: "" };
 const emptyComplaintReview = { status: "in_review", resolutionNote: "", reviewedBy: "admin", triggeredReinspection: false };
 const emptyVerificationFiles = {
   fssaiCertificateFile: null,
@@ -205,11 +234,6 @@ const hasFieldValue = (value) => {
   if (Array.isArray(value)) return value.length > 0;
   return String(value || "").trim().length > 0;
 };
-const getReviewStatus = (isPassed, overallStatus) => {
-  if (isPassed) return "passed";
-  if (overallStatus === "rejected" || overallStatus === "expired") return "rejected";
-  return "pending";
-};
 const formatReviewBadge = (status) => {
   if (status === "passed") return "Passed";
   if (status === "rejected") return "Rejected";
@@ -242,6 +266,10 @@ export default function RestPanel() {
   const [isSubmittingVerification, setIsSubmittingVerification] = useState(false);
   const [toast, setToast] = useState({ open: false, type: "success", title: "", message: "" });
   const [selectedRestaurantDetail, setSelectedRestaurantDetail] = useState(null);
+  const [editingApprovalSectionId, setEditingApprovalSectionId] = useState("");
+  const [approvalEditForm, setApprovalEditForm] = useState(emptyRestaurant);
+  const [approvalEditFiles, setApprovalEditFiles] = useState(emptyVerificationFiles);
+  const [isApprovalEditSaving, setIsApprovalEditSaving] = useState(false);
 
   const showToast = (type, title, message) => setToast({ open: true, type, title, message });
   const logout = async () => {
@@ -353,9 +381,22 @@ export default function RestPanel() {
   useEffect(() => { if (selectedRestaurantId) loadRestaurantDetails(selectedRestaurantId).catch(() => {}); }, [selectedRestaurantId]);
   useEffect(() => {
     if (!categories.length) return;
-    setAddForm((prev) => ({ ...prev, selectedCategory: prev.selectedCategory || categories[0], restaurantId: prev.restaurantId || selectedRestaurantId || restaurants[0]?.id || "" }));
-    setUpdateForm((prev) => ({ ...prev, selectedCategory: prev.selectedCategory || categories[0], restaurantId: prev.restaurantId || selectedRestaurantId || restaurants[0]?.id || "" }));
+    setAddForm((prev) => ({ ...prev, selectedCategory: prev.selectedCategory || categories[0] }));
+    setUpdateForm((prev) => ({ ...prev, selectedCategory: prev.selectedCategory || categories[0] }));
   }, [categories, selectedRestaurantId, restaurants]);
+  const sectionWorkflowStates = useMemo(
+    () => normalizeSectionWorkflowStates(selectedRestaurant?.verificationSections),
+    [selectedRestaurant]
+  );
+  const availableSafetySections = useMemo(
+    () => VERIFICATION_SECTIONS.filter((section) => sectionWorkflowStates[section.id]?.status === "draft"),
+    [sectionWorkflowStates]
+  );
+  useEffect(() => {
+    if (!availableSafetySections.length) return;
+    if (availableSafetySections.some((section) => section.id === selectedVerificationSection)) return;
+    setSelectedVerificationSection(availableSafetySections[0].id);
+  }, [availableSafetySections, selectedVerificationSection]);
   const approvalDocuments = useMemo(() => {
     const map = new Map();
     (selectedRestaurant?.documents || []).forEach((doc) => {
@@ -368,11 +409,19 @@ export default function RestPanel() {
   const approvalSections = useMemo(
     () =>
       APPROVAL_SECTION_DEFINITIONS.map((section) => {
+        const workflow = sectionWorkflowStates[section.id] || { status: "draft" };
         const items = section.items.map((item) => {
           if (item.kind === "document") {
             const document = approvalDocuments.get(item.type);
             const passed = Boolean(document);
-            const status = getReviewStatus(passed, approvalStatus);
+            const status =
+              workflow.status === "approved"
+                ? "passed"
+                : workflow.status === "rejected"
+                  ? "rejected"
+                  : workflow.status === "pending"
+                    ? passed ? "passed" : "pending"
+                    : "pending";
             return {
               ...item,
               status,
@@ -387,7 +436,14 @@ export default function RestPanel() {
 
           const value = restaurantForm[item.field];
           const passed = hasFieldValue(value);
-          const status = getReviewStatus(passed, approvalStatus);
+          const status =
+            workflow.status === "approved"
+              ? "passed"
+              : workflow.status === "rejected"
+                ? "rejected"
+                : workflow.status === "pending"
+                  ? passed ? "passed" : "pending"
+                  : "pending";
           let detail = "";
 
           if (item.kind === "boolean") {
@@ -405,31 +461,28 @@ export default function RestPanel() {
           };
         });
 
-        const passedCount = items.filter((item) => item.status === "passed").length;
-        const rejectedCount = items.filter((item) => item.status === "rejected").length;
-        const pendingCount = items.filter((item) => item.status === "pending").length;
-
         return {
           ...section,
+          workflow,
           items,
-          passedCount,
-          rejectedCount,
-          pendingCount
+          passedCount: items.filter((item) => item.status === "passed").length,
+          rejectedCount: items.filter((item) => item.status === "rejected").length,
+          pendingCount: items.filter((item) => item.status === "pending").length
         };
       }),
-    [approvalDocuments, approvalStatus, restaurantForm]
+    [approvalDocuments, restaurantForm, sectionWorkflowStates]
+  );
+  const submittedApprovalSections = useMemo(
+    () => approvalSections.filter((section) => section.workflow.status !== "draft"),
+    [approvalSections]
   );
   const approvalCounts = useMemo(
-    () =>
-      approvalSections.reduce(
-        (totals, section) => ({
-          passed: totals.passed + section.passedCount,
-          rejected: totals.rejected + section.rejectedCount,
-          pending: totals.pending + section.pendingCount
-        }),
-        { passed: 0, rejected: 0, pending: 0 }
-      ),
-    [approvalSections]
+    () => ({
+      passed: submittedApprovalSections.filter((section) => section.workflow.status === "approved").length,
+      rejected: submittedApprovalSections.filter((section) => section.workflow.status === "rejected").length,
+      pending: submittedApprovalSections.filter((section) => section.workflow.status === "pending").length
+    }),
+    [submittedApprovalSections]
   );
 
   useEffect(() => {
@@ -467,6 +520,64 @@ export default function RestPanel() {
       .finally(() => setIsBootstrappingRestaurant(false));
   }, [isBootstrappingRestaurant, isLoaded, isSignedIn, restaurants.length, token, user]);
 
+  const uploadVerificationDocuments = async (restaurantId, sectionId, files, setFiles) => {
+    const allowedKeys = new Set(SECTION_DOCUMENT_KEYS[sectionId] || []);
+    const uploads = VERIFICATION_DOCUMENTS.filter(({ key }) => allowedKeys.has(key) && files[key]);
+    if (!uploads.length) return;
+
+    for (const item of uploads) {
+      const fd = new FormData();
+      fd.append("type", item.type);
+      fd.append("label", item.label);
+      fd.append("file", files[item.key]);
+      fd.append("uploadedBy", token ? "admin" : (user?.primaryEmailAddress?.emailAddress || "restaurant_owner"));
+      fd.append("sectionId", sectionId);
+      await fetchJson(`${API_BASE}/api/restaurants/${restaurantId}/documents`, { method: "POST", body: fd });
+    }
+
+    setFiles((prev) => {
+      const next = { ...prev };
+      uploads.forEach(({ key }) => {
+        next[key] = null;
+      });
+      return next;
+    });
+  };
+  const submitVerificationSection = async ({
+    sectionId,
+    formState,
+    fileState,
+    setFileState,
+    setSavingState,
+    successTitle,
+    successMessage
+  }) => {
+    if (setSavingState) setSavingState(true);
+
+    try {
+      const data = await fetchJson(`${API_BASE}/api/restaurants`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...formState,
+          location: formState.restaurantAddress,
+          ownerDisplayName: formState.ownerName,
+          submittedSectionId: sectionId
+        })
+      });
+      await uploadVerificationDocuments(data.id, sectionId, fileState, setFileState);
+      await loadRestaurants(data.id);
+      await loadRestaurantDetails(data.id);
+      await loadDishes();
+      showToast("success", successTitle, successMessage(data.name));
+      return true;
+    } catch (err) {
+      showToast("error", "Save failed", err.message);
+      return false;
+    } finally {
+      if (setSavingState) setSavingState(false);
+    }
+  };
   const saveRestaurant = async (e) => {
     e.preventDefault();
     if (isSubmittingVerification) return;
@@ -480,56 +591,61 @@ export default function RestPanel() {
       showToast("error", "Declaration required", "Please confirm the self declaration before submitting.");
       return;
     }
-    try {
-      setIsSubmittingVerification(true);
-      const data = await fetchJson(`${API_BASE}/api/restaurants`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...restaurantForm,
-          location: restaurantForm.restaurantAddress,
-          ownerDisplayName: restaurantForm.ownerName
-        })
-      });
-      await uploadVerificationDocuments(data.id, selectedVerificationSection);
-      const sectionLabel = VERIFICATION_SECTIONS.find((item) => item.id === selectedVerificationSection)?.label || "Section";
-      showToast("success", "Section saved", `${sectionLabel} submitted for ${data.name}.`);
-      await loadRestaurants(data.id);
-      await loadRestaurantDetails(data.id);
-      await loadDishes();
-    } catch (err) {
-      showToast("error", "Save failed", err.message);
-    } finally {
-      setIsSubmittingVerification(false);
-    }
-  };
 
-  const uploadVerificationDocuments = async (restaurantId, sectionId) => {
-    const allowedKeys = new Set(SECTION_DOCUMENT_KEYS[sectionId] || []);
-    const uploads = VERIFICATION_DOCUMENTS.filter(({ key }) => allowedKeys.has(key) && verificationFiles[key]);
-    if (!uploads.length) return;
-
-    for (const item of uploads) {
-      const fd = new FormData();
-      fd.append("type", item.type);
-      fd.append("label", item.label);
-      fd.append("file", verificationFiles[item.key]);
-      fd.append("uploadedBy", token ? "admin" : (user?.primaryEmailAddress?.emailAddress || "restaurant_owner"));
-      await fetchJson(`${API_BASE}/api/restaurants/${restaurantId}/documents`, { method: "POST", body: fd });
-    }
-
-    setVerificationFiles((prev) => {
-      const next = { ...prev };
-      uploads.forEach(({ key }) => {
-        next[key] = null;
-      });
-      return next;
+    const sectionLabel = VERIFICATION_SECTIONS.find((item) => item.id === selectedVerificationSection)?.label || "Section";
+    await submitVerificationSection({
+      sectionId: selectedVerificationSection,
+      formState: restaurantForm,
+      fileState: verificationFiles,
+      setFileState: setVerificationFiles,
+      setSavingState: setIsSubmittingVerification,
+      successTitle: "Section saved",
+      successMessage: (restaurantName) => `${sectionLabel} submitted for ${restaurantName}.`
     });
+  };
+  const openApprovalSectionEditor = (sectionId) => {
+    setEditingApprovalSectionId(sectionId);
+    setApprovalEditForm({ ...restaurantForm });
+    setApprovalEditFiles({ ...emptyVerificationFiles });
+  };
+  const closeApprovalSectionEditor = () => {
+    setEditingApprovalSectionId("");
+    setApprovalEditFiles({ ...emptyVerificationFiles });
+  };
+  const saveApprovalSectionUpdate = async (e) => {
+    e.preventDefault();
+    if (!editingApprovalSectionId || isApprovalEditSaving) return;
+
+    if (!approvalEditForm.name.trim() && editingApprovalSectionId !== "basic_business") {
+      showToast("error", "Basic details first", "Please submit basic business details first.");
+      return;
+    }
+
+    if (editingApprovalSectionId === "self_declaration" && !approvalEditForm.selfDeclarationAccepted) {
+      showToast("error", "Declaration required", "Please confirm the self declaration before submitting.");
+      return;
+    }
+
+    const sectionLabel = VERIFICATION_SECTIONS.find((item) => item.id === editingApprovalSectionId)?.label || "Section";
+    const saved = await submitVerificationSection({
+      sectionId: editingApprovalSectionId,
+      formState: approvalEditForm,
+      fileState: approvalEditFiles,
+      setFileState: setApprovalEditFiles,
+      setSavingState: setIsApprovalEditSaving,
+      successTitle: "Section updated",
+      successMessage: () => `${sectionLabel} sent back for review.`
+    });
+
+    if (saved) {
+      setApprovalEditForm(emptyRestaurant);
+      closeApprovalSectionEditor();
+    }
   };
 
   const buildDishFormData = (form, category) => {
     const fd = new FormData();
-    [["name", form.name.trim()], ["description", form.description], ["price", form.price], ["category", category], ["prepTime", form.prepTime], ["tags", form.tags], ["isBestseller", String(form.isBestseller)], ["restaurantId", form.restaurantId || selectedRestaurantId || ""]].forEach(([k, v]) => fd.append(k, v));
+    [["name", form.name.trim()], ["description", form.description], ["price", form.price], ["category", category], ["prepTime", form.prepTime], ["tags", form.tags], ["isBestseller", String(form.isBestseller)], ["restaurantId", selectedRestaurantId || ""]].forEach(([k, v]) => fd.append(k, v));
     if (form.image) fd.append("image", form.image);
     return fd;
   };
@@ -547,7 +663,7 @@ export default function RestPanel() {
       showToast("success", mode === "add" ? "Dish added" : "Dish updated", `${data.name} saved.`);
       await loadDishes();
       await loadCategories();
-      if (mode === "add") setAddForm({ ...emptyDish, selectedCategory: categories[0] || "", restaurantId: selectedRestaurantId || restaurants[0]?.id || "" });
+      if (mode === "add") setAddForm({ ...emptyDish, selectedCategory: categories[0] || "" });
       if (mode === "update") setEditingDishId(data.id);
     } catch (err) { showToast("error", "Dish save failed", err.message); }
   };
@@ -556,7 +672,7 @@ export default function RestPanel() {
     const category = (dish.category || "").trim();
     const useExisting = categories.includes(category);
     setEditingDishId(dish.id || dish._id);
-    setUpdateForm({ name: dish.name || "", description: dish.description || "", price: dish.price ?? "", image: null, prepTime: dish.prepTime || "25-35 min", tags: tagsToInput(dish.tags), isBestseller: Boolean(dish.isBestseller), categoryMode: useExisting ? "existing" : "new", selectedCategory: useExisting ? category : categories[0] || "", newCategory: useExisting ? "" : category, restaurantId: dish.restaurantId || dish.restaurant?.id || selectedRestaurantId || "" });
+    setUpdateForm({ name: dish.name || "", description: dish.description || "", price: dish.price ?? "", image: null, prepTime: dish.prepTime || "25-35 min", tags: tagsToInput(dish.tags), isBestseller: Boolean(dish.isBestseller), categoryMode: useExisting ? "existing" : "new", selectedCategory: useExisting ? category : categories[0] || "", newCategory: useExisting ? "" : category });
     setActiveTab("update");
   };
 
@@ -585,6 +701,85 @@ export default function RestPanel() {
     const q = dishSearch.trim().toLowerCase();
     return !q || (dish.name || "").toLowerCase().includes(q) || (dish.category || "").toLowerCase().includes(q);
   });
+  const renderVerificationSectionFields = (sectionId, formState, setFormState, setFileState) => {
+    if (sectionId === "basic_business") {
+      return [
+        ["contactNumber", "Contact Number"],
+        ["restaurantAddress", "Restaurant Address"]
+      ].map(([field, label]) => (
+        <label key={field} className={`admin-field ${field === "restaurantAddress" ? "admin-field-full" : ""}`}>
+          <span>{label}</span>
+          {field === "restaurantAddress" ? (
+            <textarea rows={3} value={formState[field]} onChange={(e) => setFormState((p) => ({ ...p, [field]: e.target.value }))} />
+          ) : (
+            <input value={formState[field]} onChange={(e) => setFormState((p) => ({ ...p, [field]: e.target.value }))} />
+          )}
+        </label>
+      ));
+    }
+
+    if (sectionId === "legal_compliance") {
+      return <>
+        <label className="admin-field"><span>GSTN Number</span><input value={formState.gstnNumber} onChange={(e) => setFormState((p) => ({ ...p, gstnNumber: e.target.value }))} /></label>
+        <label className="admin-field"><span>FSSAI License Number</span><input value={formState.fssaiLicenseNumber} onChange={(e) => setFormState((p) => ({ ...p, fssaiLicenseNumber: e.target.value }))} /></label>
+        <label className="admin-field"><span>FSSAI expiry date</span><input type="date" value={formState.fssaiExpiryDate} onChange={(e) => setFormState((p) => ({ ...p, fssaiExpiryDate: e.target.value }))} /></label>
+        <label className="admin-field admin-field-full"><span>FSSAI Certificate</span><input type="file" accept="image/*,.pdf" onChange={(e) => setFileState((p) => ({ ...p, fssaiCertificateFile: e.target.files?.[0] || null }))} /></label>
+      </>;
+    }
+
+    if (sectionId === "kitchen_proof") {
+      return <>
+        <label className="admin-field"><span>Kitchen Photo - Cooking Area</span><input type="file" accept="image/*" onChange={(e) => setFileState((p) => ({ ...p, kitchenCookingAreaPhoto: e.target.files?.[0] || null }))} /></label>
+        <label className="admin-field"><span>Kitchen Photo - Preparation Area</span><input type="file" accept="image/*" onChange={(e) => setFileState((p) => ({ ...p, kitchenPreparationAreaPhoto: e.target.files?.[0] || null }))} /></label>
+        <label className="admin-field"><span>Kitchen Photo - Storage Area</span><input type="file" accept="image/*" onChange={(e) => setFileState((p) => ({ ...p, kitchenStorageAreaPhoto: e.target.files?.[0] || null }))} /></label>
+        <label className="admin-field"><span>Kitchen Photo - Utensils/Cleaning Area</span><input type="file" accept="image/*" onChange={(e) => setFileState((p) => ({ ...p, kitchenUtensilsCleaningAreaPhoto: e.target.files?.[0] || null }))} /></label>
+      </>;
+    }
+
+    if (sectionId === "staff_hygiene") {
+      return <>
+        <label className="admin-field"><span>Staff uses gloves, caps, aprons</span><select value={formState.staffUsesProtectiveGear ? "yes" : "no"} onChange={(e) => setFormState((p) => ({ ...p, staffUsesProtectiveGear: e.target.value === "yes" }))}><option value="yes">Yes</option><option value="no">No</option></select></label>
+        <label className="admin-field"><span>Staff hygiene photo</span><input type="file" accept="image/*" onChange={(e) => setFileState((p) => ({ ...p, staffHygienePhoto: e.target.files?.[0] || null }))} /></label>
+      </>;
+    }
+
+    if (sectionId === "food_handling") {
+      return <>
+        <label className="admin-field"><span>Raw and cooked food stored separately</span><select value={formState.rawAndCookedStoredSeparately ? "yes" : "no"} onChange={(e) => setFormState((p) => ({ ...p, rawAndCookedStoredSeparately: e.target.value === "yes" }))}><option value="yes">Yes</option><option value="no">No</option></select></label>
+        <label className="admin-field"><span>Temperature maintained properly</span><select value={formState.temperatureMaintainedProperly ? "yes" : "no"} onChange={(e) => setFormState((p) => ({ ...p, temperatureMaintainedProperly: e.target.value === "yes" }))}><option value="yes">Yes</option><option value="no">No</option></select></label>
+        <label className="admin-field admin-field-full"><span>Storage/Fridge photo</span><input type="file" accept="image/*" onChange={(e) => setFileState((p) => ({ ...p, storageFridgePhoto: e.target.files?.[0] || null }))} /></label>
+      </>;
+    }
+
+    if (sectionId === "packaging_safety") {
+      return <>
+        <label className="admin-field"><span>Type of packaging used</span><input value={formState.packagingType} onChange={(e) => setFormState((p) => ({ ...p, packagingType: e.target.value }))} /></label>
+        <label className="admin-field"><span>Sealed / tamper-safe packaging</span><select value={formState.sealedPackaging ? "yes" : "no"} onChange={(e) => setFormState((p) => ({ ...p, sealedPackaging: e.target.value === "yes" }))}><option value="yes">Yes</option><option value="no">No</option></select></label>
+        <label className="admin-field admin-field-full"><span>Packaging photo</span><input type="file" accept="image/*" onChange={(e) => setFileState((p) => ({ ...p, packagingPhoto: e.target.files?.[0] || null }))} /></label>
+      </>;
+    }
+
+    if (sectionId === "pest_control") {
+      return <>
+        <label className="admin-field"><span>Last pest control date</span><input type="date" value={formState.lastPestControlDate} onChange={(e) => setFormState((p) => ({ ...p, lastPestControlDate: e.target.value }))} /></label>
+        <label className="admin-field"><span>Pest control proof</span><input type="file" accept="image/*,.pdf" onChange={(e) => setFileState((p) => ({ ...p, pestControlProofFile: e.target.files?.[0] || null }))} /></label>
+        <label className="admin-field admin-field-full"><span>Waste disposal method</span><textarea rows={3} value={formState.wasteDisposalMethod} onChange={(e) => setFormState((p) => ({ ...p, wasteDisposalMethod: e.target.value }))} /></label>
+      </>;
+    }
+
+    if (sectionId === "water_safety") {
+      return <>
+        <label className="admin-field"><span>Water source</span><select value={formState.waterSource} onChange={(e) => setFormState((p) => ({ ...p, waterSource: e.target.value }))}><option value="RO">RO</option><option value="Filtered">Filtered</option><option value="Municipal">Municipal</option></select></label>
+        <label className="admin-field"><span>Clean water used for cooking</span><select value={formState.cleanWaterUsedForCooking ? "yes" : "no"} onChange={(e) => setFormState((p) => ({ ...p, cleanWaterUsedForCooking: e.target.value === "yes" }))}><option value="yes">Yes</option><option value="no">No</option></select></label>
+      </>;
+    }
+
+    if (sectionId === "self_declaration") {
+      return <label className="admin-checkbox"><input type="checkbox" checked={formState.selfDeclarationAccepted} onChange={(e) => setFormState((p) => ({ ...p, selfDeclarationAccepted: e.target.checked }))} /><span>I confirm that all provided information is true and the kitchen follows food safety standards.</span></label>;
+    }
+
+    return null;
+  };
 
   return (
     <div className="admin-panel-page">
@@ -603,19 +798,19 @@ export default function RestPanel() {
                   </div>
                   <div className="admin-approval-hero-stats">
                     <div className="admin-score-card">
-                      <span>Passed checks</span>
+                      <span>Approved headings</span>
                       <strong>{approvalCounts.passed}</strong>
-                      <small>Ready and submitted correctly</small>
+                      <small>Reviewed and accepted</small>
                     </div>
                     <div className="admin-score-card">
-                      <span>Rejected checks</span>
+                      <span>Rejected headings</span>
                       <strong>{approvalCounts.rejected}</strong>
-                      <small>Need fixes before approval</small>
+                      <small>Need updates before approval</small>
                     </div>
                     <div className="admin-score-card">
-                      <span>Pending checks</span>
+                      <span>Pending headings</span>
                       <strong>{approvalCounts.pending}</strong>
-                      <small>Still waiting for submission</small>
+                      <small>Waiting for admin review</small>
                     </div>
                   </div>
                 </section>
@@ -652,6 +847,7 @@ export default function RestPanel() {
                   </div>
                   <div className="admin-checklist-grid">
                     {approvalSections
+                      .filter((section) => section.workflow.status !== "draft")
                       .flatMap((section) =>
                         section.items
                           .filter((item) => item.kind === "document")
@@ -679,19 +875,18 @@ export default function RestPanel() {
 
                 <section className="admin-panel-block">
                   <div className="admin-form-header">
-                    <h2>Section-by-section review</h2>
-                    <p>See exactly what has passed and what still needs attention in each safety section.</p>
+                    <h2>Submitted headings</h2>
+                    <p>Every heading you submit moves here for review. Rejected headings can be updated from this tab only.</p>
                   </div>
                   <div className="admin-approval-section-list">
-                    {approvalSections.map((section) => (
+                    {submittedApprovalSections.map((section) => (
                       <article key={section.id} className="admin-approval-section-card">
                         <div className="admin-approval-section-head">
                           <div>
                             <strong>{section.title}</strong>
-                            <span>
-                              {section.passedCount} passed, {section.rejectedCount} rejected, {section.pendingCount} pending
-                            </span>
+                            <span>{SECTION_WORKFLOW_LABELS[section.workflow.status] || "Pending Review"}</span>
                           </div>
+                          {section.workflow.status === "rejected" ? <button type="button" className="btn admin-secondary-button" onClick={() => openApprovalSectionEditor(section.id)}>Update</button> : null}
                         </div>
                         <div className="admin-approval-item-list">
                           {section.items.map((item) => (
@@ -701,11 +896,14 @@ export default function RestPanel() {
                                 <span className={`admin-review-pill admin-review-pill-${item.status}`}>{formatReviewBadge(item.status)}</span>
                               </div>
                               <p>{item.detail}</p>
+                              {item.kind === "document" && item.link ? <a href={item.link} target="_blank" rel="noreferrer" className="admin-review-link">Open document</a> : null}
                             </div>
                           ))}
                         </div>
+                        {section.workflow.adminRemarks ? <div className="admin-section-remarks">Admin note: {section.workflow.adminRemarks}</div> : null}
                       </article>
                     ))}
+                    {!submittedApprovalSections.length ? <div className="admin-empty-state">Submitted headings will appear here after you send them for review.</div> : null}
                   </div>
                 </section>
               </div>
@@ -717,65 +915,22 @@ export default function RestPanel() {
                 <div className="admin-form admin-grid-form">
                   <div className="admin-form-header">
                     <h2>Choose submission heading</h2>
-                    <p>Select one heading and submit that section separately. Any new update from the restaurant side is sent back for admin review.</p>
+                    <p>Only headings that have not been submitted yet appear here. Rejected headings can be updated from Approval Status.</p>
                   </div>
                   <label className="admin-field admin-field-full">
                     <span>Submission heading</span>
-                    <select value={selectedVerificationSection} onChange={(e) => setSelectedVerificationSection(e.target.value)}>
-                      {VERIFICATION_SECTIONS.map((section) => <option key={section.id} value={section.id}>{section.label}</option>)}
+                    <select value={selectedVerificationSection} onChange={(e) => setSelectedVerificationSection(e.target.value)} disabled={!availableSafetySections.length}>
+                      {availableSafetySections.map((section) => <option key={section.id} value={section.id}>{section.label}</option>)}
                     </select>
                   </label>
                 </div>
-                <form onSubmit={saveRestaurant} className="admin-form admin-grid-form">
+                {availableSafetySections.length ? <form onSubmit={saveRestaurant} className="admin-form admin-grid-form">
                   <div className="admin-form-header"><h2>{VERIFICATION_SECTIONS.find((section) => section.id === selectedVerificationSection)?.label}</h2><p>{VERIFICATION_SECTIONS.find((section) => section.id === selectedVerificationSection)?.description}</p></div>
-                  {selectedVerificationSection === "basic_business" ? <>
-                    {[
-                      ["contactNumber", "Contact Number"],
-                      ["restaurantAddress", "Restaurant Address"]
-                    ].map(([field, label]) => <label key={field} className={`admin-field ${field === "restaurantAddress" ? "admin-field-full" : ""}`}><span>{label}</span>{field === "restaurantAddress" ? <textarea rows={3} value={restaurantForm[field]} onChange={(e) => setRestaurantForm((p) => ({ ...p, [field]: e.target.value }))} /> : <input value={restaurantForm[field]} onChange={(e) => setRestaurantForm((p) => ({ ...p, [field]: e.target.value }))} />}</label>)}
-                  </> : null}
-                  {selectedVerificationSection === "legal_compliance" ? <>
-                    <label className="admin-field"><span>GSTN Number</span><input value={restaurantForm.gstnNumber} onChange={(e) => setRestaurantForm((p) => ({ ...p, gstnNumber: e.target.value }))} /></label>
-                    <label className="admin-field"><span>FSSAI License Number</span><input value={restaurantForm.fssaiLicenseNumber} onChange={(e) => setRestaurantForm((p) => ({ ...p, fssaiLicenseNumber: e.target.value }))} /></label>
-                    <label className="admin-field"><span>FSSAI expiry date</span><input type="date" value={restaurantForm.fssaiExpiryDate} onChange={(e) => setRestaurantForm((p) => ({ ...p, fssaiExpiryDate: e.target.value }))} /></label>
-                    <label className="admin-field admin-field-full"><span>FSSAI Certificate</span><input type="file" accept="image/*,.pdf" onChange={(e) => setVerificationFiles((p) => ({ ...p, fssaiCertificateFile: e.target.files?.[0] || null }))} /></label>
-                  </> : null}
-                  {selectedVerificationSection === "kitchen_proof" ? <>
-                    <label className="admin-field"><span>Kitchen Photo - Cooking Area</span><input type="file" accept="image/*" onChange={(e) => setVerificationFiles((p) => ({ ...p, kitchenCookingAreaPhoto: e.target.files?.[0] || null }))} /></label>
-                    <label className="admin-field"><span>Kitchen Photo - Preparation Area</span><input type="file" accept="image/*" onChange={(e) => setVerificationFiles((p) => ({ ...p, kitchenPreparationAreaPhoto: e.target.files?.[0] || null }))} /></label>
-                    <label className="admin-field"><span>Kitchen Photo - Storage Area</span><input type="file" accept="image/*" onChange={(e) => setVerificationFiles((p) => ({ ...p, kitchenStorageAreaPhoto: e.target.files?.[0] || null }))} /></label>
-                    <label className="admin-field"><span>Kitchen Photo - Utensils/Cleaning Area</span><input type="file" accept="image/*" onChange={(e) => setVerificationFiles((p) => ({ ...p, kitchenUtensilsCleaningAreaPhoto: e.target.files?.[0] || null }))} /></label>
-                  </> : null}
-                  {selectedVerificationSection === "staff_hygiene" ? <>
-                    <label className="admin-field"><span>Staff uses gloves, caps, aprons</span><select value={restaurantForm.staffUsesProtectiveGear ? "yes" : "no"} onChange={(e) => setRestaurantForm((p) => ({ ...p, staffUsesProtectiveGear: e.target.value === "yes" }))}><option value="yes">Yes</option><option value="no">No</option></select></label>
-                    <label className="admin-field"><span>Staff hygiene photo</span><input type="file" accept="image/*" onChange={(e) => setVerificationFiles((p) => ({ ...p, staffHygienePhoto: e.target.files?.[0] || null }))} /></label>
-                  </> : null}
-                  {selectedVerificationSection === "food_handling" ? <>
-                    <label className="admin-field"><span>Raw and cooked food stored separately</span><select value={restaurantForm.rawAndCookedStoredSeparately ? "yes" : "no"} onChange={(e) => setRestaurantForm((p) => ({ ...p, rawAndCookedStoredSeparately: e.target.value === "yes" }))}><option value="yes">Yes</option><option value="no">No</option></select></label>
-                    <label className="admin-field"><span>Temperature maintained properly</span><select value={restaurantForm.temperatureMaintainedProperly ? "yes" : "no"} onChange={(e) => setRestaurantForm((p) => ({ ...p, temperatureMaintainedProperly: e.target.value === "yes" }))}><option value="yes">Yes</option><option value="no">No</option></select></label>
-                    <label className="admin-field admin-field-full"><span>Storage/Fridge photo</span><input type="file" accept="image/*" onChange={(e) => setVerificationFiles((p) => ({ ...p, storageFridgePhoto: e.target.files?.[0] || null }))} /></label>
-                  </> : null}
-                  {selectedVerificationSection === "packaging_safety" ? <>
-                    <label className="admin-field"><span>Type of packaging used</span><input value={restaurantForm.packagingType} onChange={(e) => setRestaurantForm((p) => ({ ...p, packagingType: e.target.value }))} /></label>
-                    <label className="admin-field"><span>Sealed / tamper-safe packaging</span><select value={restaurantForm.sealedPackaging ? "yes" : "no"} onChange={(e) => setRestaurantForm((p) => ({ ...p, sealedPackaging: e.target.value === "yes" }))}><option value="yes">Yes</option><option value="no">No</option></select></label>
-                    <label className="admin-field admin-field-full"><span>Packaging photo</span><input type="file" accept="image/*" onChange={(e) => setVerificationFiles((p) => ({ ...p, packagingPhoto: e.target.files?.[0] || null }))} /></label>
-                  </> : null}
-                  {selectedVerificationSection === "pest_control" ? <>
-                    <label className="admin-field"><span>Last pest control date</span><input type="date" value={restaurantForm.lastPestControlDate} onChange={(e) => setRestaurantForm((p) => ({ ...p, lastPestControlDate: e.target.value }))} /></label>
-                    <label className="admin-field"><span>Pest control proof</span><input type="file" accept="image/*,.pdf" onChange={(e) => setVerificationFiles((p) => ({ ...p, pestControlProofFile: e.target.files?.[0] || null }))} /></label>
-                    <label className="admin-field admin-field-full"><span>Waste disposal method</span><textarea rows={3} value={restaurantForm.wasteDisposalMethod} onChange={(e) => setRestaurantForm((p) => ({ ...p, wasteDisposalMethod: e.target.value }))} /></label>
-                  </> : null}
-                  {selectedVerificationSection === "water_safety" ? <>
-                    <label className="admin-field"><span>Water source</span><select value={restaurantForm.waterSource} onChange={(e) => setRestaurantForm((p) => ({ ...p, waterSource: e.target.value }))}><option value="RO">RO</option><option value="Filtered">Filtered</option><option value="Municipal">Municipal</option></select></label>
-                    <label className="admin-field"><span>Clean water used for cooking</span><select value={restaurantForm.cleanWaterUsedForCooking ? "yes" : "no"} onChange={(e) => setRestaurantForm((p) => ({ ...p, cleanWaterUsedForCooking: e.target.value === "yes" }))}><option value="yes">Yes</option><option value="no">No</option></select></label>
-                  </> : null}
-                  {selectedVerificationSection === "self_declaration" ? <>
-                    <label className="admin-checkbox"><input type="checkbox" checked={restaurantForm.selfDeclarationAccepted} onChange={(e) => setRestaurantForm((p) => ({ ...p, selfDeclarationAccepted: e.target.checked }))} /><span>I confirm that all provided information is true and the kitchen follows food safety standards.</span></label>
-                  </> : null}
+                  {renderVerificationSectionFields(selectedVerificationSection, restaurantForm, setRestaurantForm, setVerificationFiles)}
                   <button className={`btn btn-primary admin-button-full ${isSubmittingVerification ? "is-loading" : ""}`} disabled={isSubmittingVerification}>
                     {isSubmittingVerification ? "Sending details..." : `Submit ${VERIFICATION_SECTIONS.find((section) => section.id === selectedVerificationSection)?.label}`}
                   </button>
-                </form>
+                </form> : <div className="admin-empty-state">All headings have already been submitted. Review updates from the Approval Status tab.</div>}
                 </>
               </div>
             ) : null}
@@ -788,9 +943,9 @@ export default function RestPanel() {
             ) : null}
             {["add", "update", "remove"].includes(activeTab) ? (
               <div className="admin-remove-shell">
-                <div className="admin-form-header"><h2>{activeTab === "add" ? "Add dish" : activeTab === "update" ? "Update dishes" : "Remove dishes"}</h2><p>Assign dishes to restaurants so the customer app can show trust and safety metadata with each menu item.</p></div>
+                <div className="admin-form-header"><h2>{activeTab === "add" ? "Add dish" : activeTab === "update" ? "Update dishes" : "Remove dishes"}</h2><p>Dishes are linked automatically to the restaurant account that is currently logged in.</p></div>
                 {activeTab !== "add" ? <div className="admin-search-row"><input className="admin-search-input" value={dishSearch} onChange={(e) => setDishSearch(e.target.value)} placeholder="Search by name or category" /><button className="btn admin-secondary-button" onClick={() => loadDishes().catch(() => {})}>Refresh</button></div> : null}
-                {activeTab === "add" || editingDishId ? <form onSubmit={(e) => saveDish(e, activeTab === "add" ? "add" : "update")} className="admin-form admin-grid-form"><label className="admin-field admin-field-full"><span>Dish name</span><input value={(activeTab === "add" ? addForm : updateForm).name} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, name: e.target.value }))} /></label><label className="admin-field admin-field-full"><span>Description</span><textarea rows={4} value={(activeTab === "add" ? addForm : updateForm).description} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, description: e.target.value }))} /></label><label className="admin-field"><span>Price</span><input type="number" value={(activeTab === "add" ? addForm : updateForm).price} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, price: e.target.value }))} /></label><label className="admin-field"><span>Restaurant</span><select value={(activeTab === "add" ? addForm : updateForm).restaurantId} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, restaurantId: e.target.value }))}>{restaurants.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label className="admin-field"><span>Category mode</span><select value={(activeTab === "add" ? addForm : updateForm).categoryMode} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, categoryMode: e.target.value }))}><option value="existing">existing</option><option value="new">new</option></select></label>{((activeTab === "add" ? addForm : updateForm).categoryMode === "existing") ? <label className="admin-field"><span>Category</span><select value={(activeTab === "add" ? addForm : updateForm).selectedCategory} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, selectedCategory: e.target.value }))}>{categories.map((item) => <option key={item} value={item}>{item}</option>)}</select></label> : <label className="admin-field"><span>New category</span><input value={(activeTab === "add" ? addForm : updateForm).newCategory} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, newCategory: e.target.value }))} /></label>}<label className="admin-field"><span>Prep time</span><input value={(activeTab === "add" ? addForm : updateForm).prepTime} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, prepTime: e.target.value }))} /></label><label className="admin-field admin-field-full"><span>Tags</span><input value={(activeTab === "add" ? addForm : updateForm).tags} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, tags: e.target.value }))} /></label><label className="admin-checkbox"><input type="checkbox" checked={(activeTab === "add" ? addForm : updateForm).isBestseller} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, isBestseller: e.target.checked }))} /><span>Highlight as bestseller</span></label><label className="admin-field admin-field-full"><span>{activeTab === "add" ? "Dish image" : "Replace dish image"}</span><input type="file" accept="image/*" onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, image: e.target.files?.[0] || null }))} /></label><button className="btn btn-primary admin-button-full">{activeTab === "add" ? "Save dish" : "Update dish"}</button></form> : <div className="admin-empty-state">Pick a dish below to edit it.</div>}
+                {activeTab === "add" || editingDishId ? <form onSubmit={(e) => saveDish(e, activeTab === "add" ? "add" : "update")} className="admin-form admin-grid-form"><label className="admin-field admin-field-full"><span>Dish name</span><input value={(activeTab === "add" ? addForm : updateForm).name} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, name: e.target.value }))} /></label><label className="admin-field admin-field-full"><span>Description</span><textarea rows={4} value={(activeTab === "add" ? addForm : updateForm).description} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, description: e.target.value }))} /></label><label className="admin-field"><span>Price</span><input type="number" value={(activeTab === "add" ? addForm : updateForm).price} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, price: e.target.value }))} /></label><label className="admin-field"><span>Restaurant</span><input value={displayRestaurantName} disabled /></label><label className="admin-field"><span>Category mode</span><select value={(activeTab === "add" ? addForm : updateForm).categoryMode} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, categoryMode: e.target.value }))}><option value="existing">existing</option><option value="new">new</option></select></label>{((activeTab === "add" ? addForm : updateForm).categoryMode === "existing") ? <label className="admin-field"><span>Category</span><select value={(activeTab === "add" ? addForm : updateForm).selectedCategory} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, selectedCategory: e.target.value }))}>{categories.map((item) => <option key={item} value={item}>{item}</option>)}</select></label> : <label className="admin-field"><span>New category</span><input value={(activeTab === "add" ? addForm : updateForm).newCategory} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, newCategory: e.target.value }))} /></label>}<label className="admin-field"><span>Prep time</span><input value={(activeTab === "add" ? addForm : updateForm).prepTime} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, prepTime: e.target.value }))} /></label><label className="admin-field admin-field-full"><span>Tags</span><input value={(activeTab === "add" ? addForm : updateForm).tags} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, tags: e.target.value }))} /></label><label className="admin-checkbox"><input type="checkbox" checked={(activeTab === "add" ? addForm : updateForm).isBestseller} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, isBestseller: e.target.checked }))} /><span>Highlight as bestseller</span></label><label className="admin-field admin-field-full"><span>{activeTab === "add" ? "Dish image" : "Replace dish image"}</span><input type="file" accept="image/*" onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, image: e.target.files?.[0] || null }))} /></label><button className="btn btn-primary admin-button-full">{activeTab === "add" ? "Save dish" : "Update dish"}</button></form> : <div className="admin-empty-state">Pick a dish below to edit it.</div>}
                 {activeTab !== "add" ? <div className="admin-dish-list">{filteredDishes.map((dish) => <div key={dish.id || dish._id} className={`admin-dish-row ${editingDishId === (dish.id || dish._id) ? "is-selected" : ""}`}><div><div className="admin-dish-name">{dish.name}</div><div className="admin-dish-meta">{dish.category} / Rs {dish.price} / {dish.restaurant?.name || "No restaurant"}</div></div>{activeTab === "remove" ? <button type="button" className="btn admin-danger-button" onClick={() => setDeleteTarget(dish)}>Delete</button> : <button type="button" className="btn admin-secondary-button" onClick={() => selectDish(dish)}>Edit</button>}</div>)}</div> : null}
               </div>
             ) : null}
@@ -798,6 +953,7 @@ export default function RestPanel() {
         </section>
       </div>
       <Toast open={toast.open} type={toast.type} title={toast.title} message={toast.message} onClose={() => setToast((t) => ({ ...t, open: false }))} />
+      {editingApprovalSectionId ? <div className="confirm-dialog-backdrop" role="presentation"><div className="confirm-dialog-card admin-section-modal" role="dialog" aria-modal="true"><div className="confirm-dialog-badge">Update rejected heading</div><h3 className="confirm-dialog-title">{VERIFICATION_SECTIONS.find((section) => section.id === editingApprovalSectionId)?.label}</h3><p className="confirm-dialog-text">Update this rejected heading here and send it back for review.</p><form onSubmit={saveApprovalSectionUpdate} className="admin-form admin-grid-form">{renderVerificationSectionFields(editingApprovalSectionId, approvalEditForm, setApprovalEditForm, setApprovalEditFiles)}<div className="confirm-dialog-actions"><button type="button" className="btn admin-secondary-button" onClick={closeApprovalSectionEditor}>Cancel</button><button type="submit" className={`btn btn-primary ${isApprovalEditSaving ? "is-loading" : ""}`} disabled={isApprovalEditSaving}>{isApprovalEditSaving ? "Updating..." : "Update"}</button></div></form></div></div> : null}
       {deleteTarget ? <div className="confirm-dialog-backdrop" role="presentation"><div className="confirm-dialog-card" role="dialog" aria-modal="true"><div className="confirm-dialog-badge">Delete dish</div><h3 className="confirm-dialog-title">Confirm deletion</h3><p className="confirm-dialog-text">Delete <strong>{deleteTarget.name}</strong> from the live menu?</p><div className="confirm-dialog-actions"><button type="button" className="btn admin-secondary-button" onClick={() => setDeleteTarget(null)}>No</button><button type="button" className="btn admin-danger-button" onClick={deleteDish}>Yes, delete</button></div></div></div> : null}
     </div>
   );

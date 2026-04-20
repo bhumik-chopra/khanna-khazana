@@ -19,6 +19,18 @@ const { calculateRestaurantSafety } = require("../utils/restaurantSafety");
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
+const VERIFICATION_SECTION_IDS = [
+  "basic_business",
+  "legal_compliance",
+  "kitchen_proof",
+  "staff_hygiene",
+  "food_handling",
+  "packaging_safety",
+  "pest_control",
+  "water_safety",
+  "self_declaration"
+];
+const SECTION_WORKFLOW_STATUSES = ["draft", "pending", "rejected", "approved"];
 
 function parseBoolean(value) {
   if (typeof value === "boolean") return value;
@@ -27,6 +39,54 @@ function parseBoolean(value) {
     return normalized === "true" || normalized === "yes" || normalized === "on";
   }
   return false;
+}
+
+function normalizeVerificationSections(states = {}) {
+  return VERIFICATION_SECTION_IDS.reduce((acc, sectionId) => {
+    const current = states?.[sectionId] || {};
+    acc[sectionId] = {
+      status: SECTION_WORKFLOW_STATUSES.includes(current.status) ? current.status : "draft",
+      submittedAt: current.submittedAt || null,
+      reviewedAt: current.reviewedAt || null,
+      lastUpdatedAt: current.lastUpdatedAt || null,
+      adminRemarks: current.adminRemarks || ""
+    };
+    return acc;
+  }, {});
+}
+
+function markSectionSubmitted(states = {}, sectionId) {
+  const next = normalizeVerificationSections(states);
+  if (!VERIFICATION_SECTION_IDS.includes(sectionId)) return next;
+
+  const now = new Date();
+  next[sectionId] = {
+    ...next[sectionId],
+    status: "pending",
+    submittedAt: next[sectionId].submittedAt || now,
+    reviewedAt: null,
+    lastUpdatedAt: now,
+    adminRemarks: ""
+  };
+  return next;
+}
+
+function applyApprovalDecisionToSections(states = {}, decision, remarks = "") {
+  const next = normalizeVerificationSections(states);
+  const now = new Date();
+
+  Object.keys(next).forEach((sectionId) => {
+    if (next[sectionId].status === "draft") return;
+    next[sectionId] = {
+      ...next[sectionId],
+      status: decision === "approve" ? "approved" : "rejected",
+      reviewedAt: now,
+      lastUpdatedAt: now,
+      adminRemarks: decision === "reject" ? remarks : ""
+    };
+  });
+
+  return next;
 }
 
 function uploadToCloudinary(buffer, folder = "khanna-khazana/compliance") {
@@ -158,7 +218,8 @@ router.post("/", requireDashboardUser, async (req, res) => {
       staffHygieneStatus,
       foodHandlingStatus,
       remarksByAdmin,
-      verifiedBy
+      verifiedBy,
+      submittedSectionId
     } = req.body;
 
     if (!String(name || "").trim()) {
@@ -220,6 +281,9 @@ router.post("/", requireDashboardUser, async (req, res) => {
         foodHandlingStatus || (storesFoodSeparately && maintainsTemperature ? "good" : "poor"),
       remarksByAdmin: String(remarksByAdmin || "").trim(),
       verifiedBy: String(verifiedBy || "admin").trim(),
+      verificationSections: req.auth.isPlatformAdmin
+        ? normalizeVerificationSections(existing?.verificationSections)
+        : markSectionSubmitted(existing?.verificationSections, String(submittedSectionId || "").trim()),
       ownerClerkUserId: req.auth.isPlatformAdmin
         ? existing?.ownerClerkUserId || ""
         : req.auth.clerkUserId,
@@ -349,6 +413,11 @@ router.post("/:id/approval", requireAdmin, async (req, res) => {
 
     restaurant.remarksByAdmin = remarks;
     restaurant.verifiedBy = reviewer;
+    restaurant.verificationSections = applyApprovalDecisionToSections(
+      restaurant.verificationSections,
+      decision,
+      remarks
+    );
 
     if (decision === "approve") {
       restaurant.kitchenVerificationStatus = "verified";
