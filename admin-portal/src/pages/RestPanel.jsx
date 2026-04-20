@@ -85,6 +85,38 @@ const emptyVerificationFiles = {
 
 const dateInput = (v) => (v ? String(v).slice(0, 10) : "");
 const tagsToInput = (tags) => (Array.isArray(tags) ? tags.join(", ") : typeof tags === "string" ? tags : "");
+const humanizeStatus = (value) => String(value || "pending").replaceAll("_", " ");
+const formatDisplayDate = (value) => {
+  if (!value) return "Not available yet";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not available yet";
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  });
+};
+const getStatusTone = (status) => {
+  if (status === "verified") return "approved";
+  if (status === "rejected" || status === "expired") return "attention";
+  if (status === "needs_reinspection") return "review";
+  return "pending";
+};
+const getStatusMessage = (status) => {
+  if (status === "verified") {
+    return "Your restaurant is approved and visible as verified in the platform.";
+  }
+  if (status === "rejected") {
+    return "Your last submission was not approved. Review the admin remarks, update the details, and send it again.";
+  }
+  if (status === "needs_reinspection") {
+    return "A fresh review is needed before the restaurant can return to a verified state.";
+  }
+  if (status === "expired") {
+    return "Some compliance details have expired. Update them and resubmit for review.";
+  }
+  return "Your submission is under review. You can still open the form and update any section if needed.";
+};
 
 export default function RestPanel() {
   const navigate = useNavigate();
@@ -110,6 +142,7 @@ export default function RestPanel() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isBootstrappingRestaurant, setIsBootstrappingRestaurant] = useState(false);
   const [isSubmittingVerification, setIsSubmittingVerification] = useState(false);
+  const [isApprovalStatusOpen, setIsApprovalStatusOpen] = useState(true);
   const [toast, setToast] = useState({ open: false, type: "success", title: "", message: "" });
 
   const showToast = (type, title, message) => setToast({ open: true, type, title, message });
@@ -122,6 +155,8 @@ export default function RestPanel() {
     navigate(localToken ? "/admin-login" : "/login");
   };
   const selectedRestaurant = restaurants.find((item) => item.id === selectedRestaurantId) || null;
+  const approvalStatus = restaurantForm.kitchenVerificationStatus || selectedRestaurant?.kitchenVerificationStatus || "pending";
+  const approvalTone = getStatusTone(approvalStatus);
   const displayRestaurantName =
     selectedRestaurant?.name ||
     restaurantForm.name ||
@@ -216,6 +251,9 @@ export default function RestPanel() {
   }, [isLoaded, isSignedIn, token]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (selectedRestaurantId) loadRestaurantDetails(selectedRestaurantId).catch(() => {}); }, [selectedRestaurantId]);
+  useEffect(() => {
+    setIsApprovalStatusOpen(approvalStatus !== "verified");
+  }, [approvalStatus, selectedRestaurantId]);
   useEffect(() => {
     if (!categories.length) return;
     setAddForm((prev) => ({ ...prev, selectedCategory: prev.selectedCategory || categories[0], restaurantId: prev.restaurantId || selectedRestaurantId || restaurants[0]?.id || "" }));
@@ -385,11 +423,44 @@ export default function RestPanel() {
           <div className="admin-content-panel">
             {activeTab === "safety" ? (
               <div className="admin-remove-shell">
+                <button
+                  type="button"
+                  className={`admin-status-card admin-status-card-${approvalTone} ${isApprovalStatusOpen ? "is-open" : ""}`}
+                  onClick={() => setIsApprovalStatusOpen((current) => !current)}
+                >
+                  <div className="admin-status-card-topline">
+                    <div>
+                      <div className="admin-badge">Approval Status</div>
+                      <div className="admin-status-title">{humanizeStatus(approvalStatus)}</div>
+                    </div>
+                    <span className="admin-status-toggle">{isApprovalStatusOpen ? "Hide" : "Open"}</span>
+                  </div>
+                  <p>{getStatusMessage(approvalStatus)}</p>
+                  <div className="admin-status-meta">
+                    <div>
+                      <span>Admin remarks</span>
+                      <strong>{restaurantForm.remarksByAdmin || "No remarks yet."}</strong>
+                    </div>
+                    <div>
+                      <span>Last verified</span>
+                      <strong>{formatDisplayDate(selectedRestaurant?.lastVerifiedDate)}</strong>
+                    </div>
+                    <div>
+                      <span>Hygiene score</span>
+                      <strong>{selectedRestaurant?.hygieneScore || 0}</strong>
+                    </div>
+                  </div>
+                  <small className="admin-status-hint">
+                    Click this box to {isApprovalStatusOpen ? "collapse" : "expand"} the update and resend form.
+                  </small>
+                </button>
+                {isApprovalStatusOpen ? (
+                  <>
                 <div className="admin-form-header"><h2>Restaurant verification submission</h2><p>Submit only the required restaurant verification details, compliance proof, and kitchen safety uploads.</p></div>
                 <div className="admin-form admin-grid-form">
                   <div className="admin-form-header">
                     <h2>Choose submission heading</h2>
-                    <p>Select one heading and submit that section separately.</p>
+                    <p>Select one heading and submit that section separately. Any new update from the restaurant side is sent back for admin review.</p>
                   </div>
                   <label className="admin-field admin-field-full">
                     <span>Submission heading</span>
@@ -448,6 +519,8 @@ export default function RestPanel() {
                     {isSubmittingVerification ? "Sending details..." : `Submit ${VERIFICATION_SECTIONS.find((section) => section.id === selectedVerificationSection)?.label}`}
                   </button>
                 </form>
+                  </>
+                ) : null}
               </div>
             ) : null}
             {activeTab === "complaints" ? (
