@@ -419,9 +419,9 @@ export default function RestPanel() {
       <div className="container admin-panel-shell">
         <header className="admin-panel-header"><div><div className="admin-badge">KK Control</div><div className="admin-panel-subheading">Restaurant safety and operations control</div><div className="admin-panel-identity"><div className="admin-panel-identity-item"><span>Restaurant</span><strong>{displayRestaurantName}</strong></div><div className="admin-panel-identity-divider" aria-hidden="true" /><div className="admin-panel-identity-item"><span>Owner</span><strong>{displayOwnerName}</strong></div></div></div><div className="admin-panel-actions"><button className="btn btn-primary" onClick={() => window.open("https://khanna-khazana-4.onrender.com", "_blank", "noopener,noreferrer")}>Delivery portal</button><button className="btn admin-secondary-button" onClick={logout}>Logout</button></div></header>
         <section className="admin-panel-body">
-          <aside className="admin-side-panel">{[["safety", "Restaurant Safety"], ["complaints", "Complaints"], ["add", "Add Dish"], ["update", "Update Dish"], ["remove", "Remove Dish"]].map(([key, label]) => <button key={key} type="button" className={`admin-tab-button ${activeTab === key ? "is-active" : ""}`} onClick={() => setActiveTab(key)}>{label}</button>)}</aside>
+          <aside className="admin-side-panel">{[["safety", "Restaurant Safety"], ["approval", "Approval Status"], ["complaints", "Complaints"], ["add", "Add Dish"], ["update", "Update Dish"], ["remove", "Remove Dish"]].map(([key, label]) => <button key={key} type="button" className={`admin-tab-button ${activeTab === key ? "is-active" : ""}`} onClick={() => setActiveTab(key)}>{label}</button>)}</aside>
           <div className="admin-content-panel">
-            {activeTab === "safety" ? (
+            {activeTab === "approval" ? (
               <div className="admin-remove-shell">
                 <button
                   type="button"
@@ -451,11 +451,14 @@ export default function RestPanel() {
                     </div>
                   </div>
                   <small className="admin-status-hint">
-                    Click this box to {isApprovalStatusOpen ? "collapse" : "expand"} the update and resend form.
+                    Click this box to {isApprovalStatusOpen ? "collapse" : "expand"} the update summary.
                   </small>
                 </button>
-                {isApprovalStatusOpen ? (
-                  <>
+              </div>
+            ) : null}
+            {activeTab === "safety" ? (
+              <div className="admin-remove-shell">
+                <>
                 <div className="admin-form-header"><h2>Restaurant verification submission</h2><p>Submit only the required restaurant verification details, compliance proof, and kitchen safety uploads.</p></div>
                 <div className="admin-form admin-grid-form">
                   <div className="admin-form-header">
@@ -519,8 +522,7 @@ export default function RestPanel() {
                     {isSubmittingVerification ? "Sending details..." : `Submit ${VERIFICATION_SECTIONS.find((section) => section.id === selectedVerificationSection)?.label}`}
                   </button>
                 </form>
-                  </>
-                ) : null}
+                </>
               </div>
             ) : null}
             {activeTab === "complaints" ? (
