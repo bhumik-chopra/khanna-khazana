@@ -925,6 +925,202 @@ select {
   gap: 1rem;
 }
 
+.admin-approval-view {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-approval-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 1rem;
+  padding: 1.25rem;
+  border-radius: 28px;
+  border: 1px solid rgba(17, 22, 17, 0.08);
+  overflow: hidden;
+}
+
+.admin-approval-hero-pending {
+  background:
+    radial-gradient(circle at top right, rgba(255, 195, 90, 0.28), transparent 42%),
+    linear-gradient(135deg, rgba(255, 251, 240, 0.98), rgba(255, 255, 255, 0.92));
+}
+
+.admin-approval-hero-approved {
+  background:
+    radial-gradient(circle at top right, rgba(10, 163, 92, 0.2), transparent 42%),
+    linear-gradient(135deg, rgba(240, 255, 247, 0.98), rgba(255, 255, 255, 0.92));
+}
+
+.admin-approval-hero-review {
+  background:
+    radial-gradient(circle at top right, rgba(255, 122, 26, 0.24), transparent 42%),
+    linear-gradient(135deg, rgba(255, 246, 239, 0.98), rgba(255, 255, 255, 0.92));
+}
+
+.admin-approval-hero-attention {
+  background:
+    radial-gradient(circle at top right, rgba(255, 75, 66, 0.2), transparent 42%),
+    linear-gradient(135deg, rgba(255, 241, 240, 0.98), rgba(255, 255, 255, 0.92));
+}
+
+.admin-approval-hero-copy h2 {
+  margin: 0.45rem 0 0.5rem;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(1.8rem, 3.8vw, 2.7rem);
+  line-height: 1;
+  text-transform: capitalize;
+}
+
+.admin-approval-hero-copy p,
+.admin-review-item p,
+.admin-approval-highlight p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.admin-approval-hero-stats,
+.admin-approval-summary-grid,
+.admin-checklist-grid {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.admin-approval-hero-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-self: end;
+}
+
+.admin-approval-summary-grid {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+}
+
+.admin-approval-highlight {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 244, 233, 0.9));
+}
+
+.admin-approval-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.admin-approval-meta-grid > div {
+  padding: 0.95rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.admin-approval-meta-grid span,
+.admin-approval-section-head span,
+.admin-review-item-topline span {
+  display: block;
+  color: var(--muted);
+}
+
+.admin-approval-meta-grid strong {
+  display: block;
+  margin-top: 0.25rem;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.15rem;
+}
+
+.admin-checklist-grid,
+.admin-approval-section-list,
+.admin-approval-item-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.admin-checklist-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-approval-section-card {
+  padding: 1rem;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.68);
+  border: 1px solid rgba(17, 22, 17, 0.06);
+}
+
+.admin-approval-section-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-bottom: 0.9rem;
+}
+
+.admin-approval-section-head strong,
+.admin-review-item-topline strong {
+  display: block;
+}
+
+.admin-review-item {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.95rem 1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(17, 22, 17, 0.08);
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.admin-review-item-passed {
+  background: linear-gradient(135deg, rgba(230, 250, 240, 0.94), rgba(255, 255, 255, 0.92));
+  border-color: rgba(10, 163, 92, 0.24);
+}
+
+.admin-review-item-rejected {
+  background: linear-gradient(135deg, rgba(255, 237, 235, 0.94), rgba(255, 255, 255, 0.92));
+  border-color: rgba(255, 75, 66, 0.24);
+}
+
+.admin-review-item-pending {
+  background: linear-gradient(135deg, rgba(255, 248, 231, 0.94), rgba(255, 255, 255, 0.92));
+  border-color: rgba(255, 175, 27, 0.24);
+}
+
+.admin-review-item-topline {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.admin-review-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.42rem 0.72rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.admin-review-pill-passed {
+  background: rgba(10, 163, 92, 0.14);
+  color: #0a7d49;
+}
+
+.admin-review-pill-rejected {
+  background: rgba(255, 75, 66, 0.14);
+  color: #d93c33;
+}
+
+.admin-review-pill-pending {
+  background: rgba(255, 175, 27, 0.16);
+  color: #b16b00;
+}
+
+.admin-review-link {
+  font-weight: 700;
+  color: var(--green-deep);
+}
+
 .admin-approval-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -1015,7 +1211,11 @@ select {
   .admin-login-highlights,
   .admin-grid-form,
   .admin-score-strip,
-  .admin-approval-grid {
+  .admin-approval-grid,
+  .admin-approval-hero,
+  .admin-approval-summary-grid,
+  .admin-checklist-grid,
+  .admin-approval-hero-stats {
     grid-template-columns: 1fr;
   }
 }
@@ -1038,6 +1238,7 @@ select {
   .admin-panel-actions,
   .admin-status-card-topline,
   .admin-status-meta,
+  .admin-review-item-topline,
   .admin-search-row,
   .confirm-dialog-actions {
     flex-direction: column;

@@ -40,6 +40,89 @@ const SECTION_DOCUMENT_KEYS = {
   packaging_safety: ["packagingPhoto"],
   pest_control: ["pestControlProofFile"]
 };
+const DOCUMENT_LABELS = Object.fromEntries(
+  VERIFICATION_DOCUMENTS.map((item) => [item.type, item.label])
+);
+const APPROVAL_SECTION_DEFINITIONS = [
+  {
+    id: "basic_business",
+    title: "Basic business details",
+    items: [
+      { kind: "text", field: "contactNumber", label: "Contact number" },
+      { kind: "text", field: "restaurantAddress", label: "Restaurant address" }
+    ]
+  },
+  {
+    id: "legal_compliance",
+    title: "Legal and compliance",
+    items: [
+      { kind: "text", field: "gstnNumber", label: "GSTN number" },
+      { kind: "text", field: "fssaiLicenseNumber", label: "FSSAI license number" },
+      { kind: "date", field: "fssaiExpiryDate", label: "FSSAI expiry date" },
+      { kind: "document", type: "fssai_certificate", label: "FSSAI certificate" }
+    ]
+  },
+  {
+    id: "kitchen_proof",
+    title: "Kitchen proof",
+    items: [
+      { kind: "document", type: "kitchen_cooking_area_photo", label: "Cooking area photo" },
+      { kind: "document", type: "kitchen_preparation_area_photo", label: "Preparation area photo" },
+      { kind: "document", type: "kitchen_storage_area_photo", label: "Storage area photo" },
+      { kind: "document", type: "kitchen_utensils_cleaning_area_photo", label: "Utensils and cleaning area photo" }
+    ]
+  },
+  {
+    id: "staff_hygiene",
+    title: "Staff hygiene",
+    items: [
+      { kind: "boolean", field: "staffUsesProtectiveGear", label: "Protective gear confirmation", passText: "Confirmed", failText: "Not confirmed" },
+      { kind: "document", type: "staff_hygiene_photo", label: "Staff hygiene photo" }
+    ]
+  },
+  {
+    id: "food_handling",
+    title: "Food handling and storage",
+    items: [
+      { kind: "boolean", field: "rawAndCookedStoredSeparately", label: "Raw and cooked food stored separately", passText: "Confirmed", failText: "Not confirmed" },
+      { kind: "boolean", field: "temperatureMaintainedProperly", label: "Temperature maintained properly", passText: "Confirmed", failText: "Not confirmed" },
+      { kind: "document", type: "storage_fridge_photo", label: "Storage or fridge photo" }
+    ]
+  },
+  {
+    id: "packaging_safety",
+    title: "Packaging safety",
+    items: [
+      { kind: "text", field: "packagingType", label: "Packaging type" },
+      { kind: "boolean", field: "sealedPackaging", label: "Tamper-safe packaging", passText: "Confirmed", failText: "Not confirmed" },
+      { kind: "document", type: "packaging_photo", label: "Packaging photo" }
+    ]
+  },
+  {
+    id: "pest_control",
+    title: "Pest control and cleanliness",
+    items: [
+      { kind: "date", field: "lastPestControlDate", label: "Last pest control date" },
+      { kind: "document", type: "pest_control_proof", label: "Pest control proof" },
+      { kind: "text", field: "wasteDisposalMethod", label: "Waste disposal method" }
+    ]
+  },
+  {
+    id: "water_safety",
+    title: "Water and ingredient safety",
+    items: [
+      { kind: "text", field: "waterSource", label: "Water source" },
+      { kind: "boolean", field: "cleanWaterUsedForCooking", label: "Clean water used for cooking", passText: "Confirmed", failText: "Not confirmed" }
+    ]
+  },
+  {
+    id: "self_declaration",
+    title: "Self declaration",
+    items: [
+      { kind: "boolean", field: "selfDeclarationAccepted", label: "Safety declaration accepted", passText: "Accepted", failText: "Not accepted" }
+    ]
+  }
+];
 
 const emptyRestaurant = {
   id: "",
@@ -117,6 +200,21 @@ const getStatusMessage = (status) => {
   }
   return "Your submission is under review. You can still open the form and update any section if needed.";
 };
+const hasFieldValue = (value) => {
+  if (typeof value === "boolean") return value;
+  if (Array.isArray(value)) return value.length > 0;
+  return String(value || "").trim().length > 0;
+};
+const getReviewStatus = (isPassed, overallStatus) => {
+  if (isPassed) return "passed";
+  if (overallStatus === "rejected" || overallStatus === "expired") return "rejected";
+  return "pending";
+};
+const formatReviewBadge = (status) => {
+  if (status === "passed") return "Passed";
+  if (status === "rejected") return "Rejected";
+  return "Pending";
+};
 
 export default function RestPanel() {
   const navigate = useNavigate();
@@ -142,8 +240,8 @@ export default function RestPanel() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isBootstrappingRestaurant, setIsBootstrappingRestaurant] = useState(false);
   const [isSubmittingVerification, setIsSubmittingVerification] = useState(false);
-  const [isApprovalStatusOpen, setIsApprovalStatusOpen] = useState(true);
   const [toast, setToast] = useState({ open: false, type: "success", title: "", message: "" });
+  const [selectedRestaurantDetail, setSelectedRestaurantDetail] = useState(null);
 
   const showToast = (type, title, message) => setToast({ open: true, type, title, message });
   const logout = async () => {
@@ -154,7 +252,8 @@ export default function RestPanel() {
     }
     navigate(localToken ? "/admin-login" : "/login");
   };
-  const selectedRestaurant = restaurants.find((item) => item.id === selectedRestaurantId) || null;
+  const selectedRestaurantSummary = restaurants.find((item) => item.id === selectedRestaurantId) || null;
+  const selectedRestaurant = selectedRestaurantDetail || selectedRestaurantSummary;
   const approvalStatus = restaurantForm.kitchenVerificationStatus || selectedRestaurant?.kitchenVerificationStatus || "pending";
   const approvalTone = getStatusTone(approvalStatus);
   const displayRestaurantName =
@@ -199,6 +298,7 @@ export default function RestPanel() {
   const loadRestaurantDetails = async (restaurantId) => {
     if (!restaurantId) return;
     const detail = await fetchJson(`${API_BASE}/api/restaurants/${restaurantId}`);
+    setSelectedRestaurantDetail(detail);
     setRestaurantForm({
       id: detail.id || "",
       name: detail.name || "",
@@ -252,13 +352,85 @@ export default function RestPanel() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (selectedRestaurantId) loadRestaurantDetails(selectedRestaurantId).catch(() => {}); }, [selectedRestaurantId]);
   useEffect(() => {
-    setIsApprovalStatusOpen(approvalStatus !== "verified");
-  }, [approvalStatus, selectedRestaurantId]);
-  useEffect(() => {
     if (!categories.length) return;
     setAddForm((prev) => ({ ...prev, selectedCategory: prev.selectedCategory || categories[0], restaurantId: prev.restaurantId || selectedRestaurantId || restaurants[0]?.id || "" }));
     setUpdateForm((prev) => ({ ...prev, selectedCategory: prev.selectedCategory || categories[0], restaurantId: prev.restaurantId || selectedRestaurantId || restaurants[0]?.id || "" }));
   }, [categories, selectedRestaurantId, restaurants]);
+  const approvalDocuments = useMemo(() => {
+    const map = new Map();
+    (selectedRestaurant?.documents || []).forEach((doc) => {
+      if (doc?.type && !map.has(doc.type)) {
+        map.set(doc.type, doc);
+      }
+    });
+    return map;
+  }, [selectedRestaurant]);
+  const approvalSections = useMemo(
+    () =>
+      APPROVAL_SECTION_DEFINITIONS.map((section) => {
+        const items = section.items.map((item) => {
+          if (item.kind === "document") {
+            const document = approvalDocuments.get(item.type);
+            const passed = Boolean(document);
+            const status = getReviewStatus(passed, approvalStatus);
+            return {
+              ...item,
+              status,
+              detail: passed
+                ? `Uploaded ${formatDisplayDate(document.createdAt)}`
+                : status === "rejected"
+                  ? "Not uploaded in the rejected review"
+                  : "Awaiting upload",
+              link: document?.fileUrl || ""
+            };
+          }
+
+          const value = restaurantForm[item.field];
+          const passed = hasFieldValue(value);
+          const status = getReviewStatus(passed, approvalStatus);
+          let detail = "";
+
+          if (item.kind === "boolean") {
+            detail = passed ? (item.passText || "Confirmed") : (item.failText || "Not confirmed");
+          } else if (item.kind === "date") {
+            detail = passed ? formatDisplayDate(value) : status === "rejected" ? "Missing in the rejected review" : "Awaiting submission";
+          } else {
+            detail = passed ? String(value).trim() : status === "rejected" ? "Missing in the rejected review" : "Awaiting submission";
+          }
+
+          return {
+            ...item,
+            status,
+            detail
+          };
+        });
+
+        const passedCount = items.filter((item) => item.status === "passed").length;
+        const rejectedCount = items.filter((item) => item.status === "rejected").length;
+        const pendingCount = items.filter((item) => item.status === "pending").length;
+
+        return {
+          ...section,
+          items,
+          passedCount,
+          rejectedCount,
+          pendingCount
+        };
+      }),
+    [approvalDocuments, approvalStatus, restaurantForm]
+  );
+  const approvalCounts = useMemo(
+    () =>
+      approvalSections.reduce(
+        (totals, section) => ({
+          passed: totals.passed + section.passedCount,
+          rejected: totals.rejected + section.rejectedCount,
+          pending: totals.pending + section.pendingCount
+        }),
+        { passed: 0, rejected: 0, pending: 0 }
+      ),
+    [approvalSections]
+  );
 
   useEffect(() => {
     if (token) return;
@@ -422,25 +594,38 @@ export default function RestPanel() {
           <aside className="admin-side-panel">{[["safety", "Restaurant Safety"], ["approval", "Approval Status"], ["complaints", "Complaints"], ["add", "Add Dish"], ["update", "Update Dish"], ["remove", "Remove Dish"]].map(([key, label]) => <button key={key} type="button" className={`admin-tab-button ${activeTab === key ? "is-active" : ""}`} onClick={() => setActiveTab(key)}>{label}</button>)}</aside>
           <div className="admin-content-panel">
             {activeTab === "approval" ? (
-              <div className="admin-remove-shell">
-                <button
-                  type="button"
-                  className={`admin-status-card admin-status-card-${approvalTone} ${isApprovalStatusOpen ? "is-open" : ""}`}
-                  onClick={() => setIsApprovalStatusOpen((current) => !current)}
-                >
-                  <div className="admin-status-card-topline">
-                    <div>
-                      <div className="admin-badge">Approval Status</div>
-                      <div className="admin-status-title">{humanizeStatus(approvalStatus)}</div>
-                    </div>
-                    <span className="admin-status-toggle">{isApprovalStatusOpen ? "Hide" : "Open"}</span>
+              <div className="admin-approval-view">
+                <section className={`admin-approval-hero admin-approval-hero-${approvalTone}`}>
+                  <div className="admin-approval-hero-copy">
+                    <div className="admin-badge">Approval Status</div>
+                    <h2>{humanizeStatus(approvalStatus)}</h2>
+                    <p>{getStatusMessage(approvalStatus)}</p>
                   </div>
-                  <p>{getStatusMessage(approvalStatus)}</p>
-                  <div className="admin-status-meta">
-                    <div>
-                      <span>Admin remarks</span>
-                      <strong>{restaurantForm.remarksByAdmin || "No remarks yet."}</strong>
+                  <div className="admin-approval-hero-stats">
+                    <div className="admin-score-card">
+                      <span>Passed checks</span>
+                      <strong>{approvalCounts.passed}</strong>
+                      <small>Ready and submitted correctly</small>
                     </div>
+                    <div className="admin-score-card">
+                      <span>Rejected checks</span>
+                      <strong>{approvalCounts.rejected}</strong>
+                      <small>Need fixes before approval</small>
+                    </div>
+                    <div className="admin-score-card">
+                      <span>Pending checks</span>
+                      <strong>{approvalCounts.pending}</strong>
+                      <small>Still waiting for submission</small>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="admin-approval-summary-grid">
+                  <div className="admin-panel-block admin-approval-highlight">
+                    <strong>Admin remarks</strong>
+                    <p>{restaurantForm.remarksByAdmin || "No remarks yet. Once the admin reviews this submission, feedback will appear here."}</p>
+                  </div>
+                  <div className="admin-panel-block admin-approval-meta-grid">
                     <div>
                       <span>Last verified</span>
                       <strong>{formatDisplayDate(selectedRestaurant?.lastVerifiedDate)}</strong>
@@ -449,11 +634,80 @@ export default function RestPanel() {
                       <span>Hygiene score</span>
                       <strong>{selectedRestaurant?.hygieneScore || 0}</strong>
                     </div>
+                    <div>
+                      <span>Latest inspection</span>
+                      <strong>{formatDisplayDate(selectedRestaurant?.latestInspection?.inspectedAt || selectedRestaurant?.lastInspectionDate)}</strong>
+                    </div>
+                    <div>
+                      <span>Open complaints</span>
+                      <strong>{selectedRestaurant?.openComplaintCount || 0}</strong>
+                    </div>
                   </div>
-                  <small className="admin-status-hint">
-                    Click this box to {isApprovalStatusOpen ? "collapse" : "expand"} the update summary.
-                  </small>
-                </button>
+                </section>
+
+                <section className="admin-panel-block">
+                  <div className="admin-form-header">
+                    <h2>Document review</h2>
+                    <p>Every uploaded file is listed here with its current review state.</p>
+                  </div>
+                  <div className="admin-checklist-grid">
+                    {approvalSections
+                      .flatMap((section) =>
+                        section.items
+                          .filter((item) => item.kind === "document")
+                          .map((item) => ({ ...item, sectionTitle: section.title }))
+                      )
+                      .map((item) => (
+                        <div key={item.type} className={`admin-review-item admin-review-item-${item.status}`}>
+                          <div className="admin-review-item-topline">
+                            <div>
+                              <strong>{item.label || DOCUMENT_LABELS[item.type] || item.type}</strong>
+                              <span>{item.sectionTitle}</span>
+                            </div>
+                            <span className={`admin-review-pill admin-review-pill-${item.status}`}>{formatReviewBadge(item.status)}</span>
+                          </div>
+                          <p>{item.detail}</p>
+                          {item.link ? (
+                            <a href={item.link} target="_blank" rel="noreferrer" className="admin-review-link">
+                              Open document
+                            </a>
+                          ) : null}
+                        </div>
+                      ))}
+                  </div>
+                </section>
+
+                <section className="admin-panel-block">
+                  <div className="admin-form-header">
+                    <h2>Section-by-section review</h2>
+                    <p>See exactly what has passed and what still needs attention in each safety section.</p>
+                  </div>
+                  <div className="admin-approval-section-list">
+                    {approvalSections.map((section) => (
+                      <article key={section.id} className="admin-approval-section-card">
+                        <div className="admin-approval-section-head">
+                          <div>
+                            <strong>{section.title}</strong>
+                            <span>
+                              {section.passedCount} passed, {section.rejectedCount} rejected, {section.pendingCount} pending
+                            </span>
+                          </div>
+                        </div>
+                        <div className="admin-approval-item-list">
+                          {section.items.map((item) => (
+                            <div key={`${section.id}-${item.label}`} className={`admin-review-item admin-review-item-${item.status}`}>
+                              <div className="admin-review-item-topline">
+                                <strong>{item.label}</strong>
+                                <span className={`admin-review-pill admin-review-pill-${item.status}`}>{formatReviewBadge(item.status)}</span>
+                              </div>
+                              <p>{item.detail}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </section>
               </div>
             ) : null}
             {activeTab === "safety" ? (
