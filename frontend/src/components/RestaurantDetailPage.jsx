@@ -2,6 +2,49 @@ import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import ComplaintModal from "./ComplaintModal";
 
+const SECTION_DETAIL_BUILDERS = {
+  basic_business: (restaurant) => [
+    restaurant.contactNumber ? `Contact number: ${restaurant.contactNumber}` : "",
+    restaurant.restaurantAddress || restaurant.location ? `Restaurant address: ${restaurant.restaurantAddress || restaurant.location}` : ""
+  ],
+  legal_compliance: (restaurant) => [
+    restaurant.fssaiLicenseNumber ? `FSSAI number: ${restaurant.fssaiLicenseNumber}` : "",
+    restaurant.gstnNumber ? `GSTN number: ${restaurant.gstnNumber}` : "",
+    restaurant.fssaiExpiryDate ? `FSSAI expiry: ${new Date(restaurant.fssaiExpiryDate).toLocaleDateString()}` : ""
+  ],
+  kitchen_proof: () => ["Kitchen proof approved"],
+  staff_hygiene: (restaurant) => [
+    `Protective gear used: ${restaurant.staffUsesProtectiveGear ? "Yes" : "No"}`
+  ],
+  food_handling: (restaurant) => [
+    `Raw and cooked stored separately: ${restaurant.rawAndCookedStoredSeparately ? "Yes" : "No"}`,
+    `Temperature maintained properly: ${restaurant.temperatureMaintainedProperly ? "Yes" : "No"}`
+  ],
+  packaging_safety: (restaurant) => [
+    restaurant.packagingType ? `Packaging type: ${restaurant.packagingType}` : "",
+    `Sealed packaging: ${restaurant.sealedPackaging ? "Yes" : "No"}`
+  ],
+  pest_control: (restaurant) => [
+    restaurant.lastPestControlDate ? `Last pest control: ${new Date(restaurant.lastPestControlDate).toLocaleDateString()}` : "",
+    restaurant.wasteDisposalMethod ? `Waste disposal: ${restaurant.wasteDisposalMethod}` : ""
+  ],
+  water_safety: (restaurant) => [
+    restaurant.waterSource ? `Water source: ${restaurant.waterSource}` : "",
+    `Clean water used for cooking: ${restaurant.cleanWaterUsedForCooking ? "Yes" : "No"}`
+  ],
+  self_declaration: (restaurant) => [
+    `Self declaration accepted: ${restaurant.selfDeclarationAccepted ? "Yes" : "No"}`
+  ]
+};
+
+const getApprovedHeadingDetails = (restaurant) =>
+  (restaurant.headingSafety?.approvedSections || [])
+    .map((section) => ({
+      ...section,
+      details: (SECTION_DETAIL_BUILDERS[section.id]?.(restaurant) || []).filter(Boolean)
+    }))
+    .filter((section) => section.details.length > 0);
+
 const RestaurantDetailPage = ({ apiBase }) => {
   const { id } = useParams();
   const [restaurant, setRestaurant] = useState(null);
@@ -35,6 +78,9 @@ const RestaurantDetailPage = ({ apiBase }) => {
     );
   }
 
+  const headingDetails = getApprovedHeadingDetails(restaurant);
+  const headingScore = restaurant.headingSafety?.score ?? restaurant.hygieneScore ?? 0;
+
   return (
     <div className="app-shell">
       <main className="site-main">
@@ -52,31 +98,32 @@ const RestaurantDetailPage = ({ apiBase }) => {
                 </p>
               </div>
               <div className={`restaurant-score-badge is-${restaurant.scoreBand || "poor"} is-large`}>
-                {restaurant.hygieneScore || 0}
+                {headingScore}
               </div>
             </div>
 
             <div className="restaurant-detail-grid">
               <div className="restaurant-detail-card">
-                <h3>Safety snapshot</h3>
+                <h3>Heading approval snapshot</h3>
                 <ul className="restaurant-detail-list">
-                  <li>FSSAI number: {restaurant.fssaiLicenseNumber || "Awaiting upload"}</li>
-                  <li>Last verified date: {restaurant.lastVerifiedDate ? new Date(restaurant.lastVerifiedDate).toLocaleDateString() : "Pending"}</li>
-                  <li>Packaging safety: {restaurant.packagingStatus || "unchecked"}</li>
-                  <li>Staff hygiene checked: {restaurant.staffHygieneStatus || "unchecked"}</li>
-                  <li>Food handling: {restaurant.foodHandlingStatus || "unchecked"}</li>
-                  <li>Valid food license: {restaurant.fssaiExpiryDate ? (new Date(restaurant.fssaiExpiryDate) >= new Date() ? "Yes" : "Expired") : "Unknown"}</li>
+                  <li>Approved headings: {restaurant.headingSafety?.approved || 0} of {restaurant.headingSafety?.total || 0}</li>
+                  <li>Submitted headings: {restaurant.headingSafety?.submitted || 0} of {restaurant.headingSafety?.total || 0}</li>
+                  <li>Heading score: {headingScore}</li>
                 </ul>
               </div>
 
               <div className="restaurant-detail-card">
-                <h3>Inspection and documents</h3>
-                <ul className="restaurant-detail-list">
-                  <li>Last inspection date: {restaurant.lastInspectionDate ? new Date(restaurant.lastInspectionDate).toLocaleDateString() : "Not available"}</li>
-                  <li>Next inspection date: {restaurant.nextInspectionDate ? new Date(restaurant.nextInspectionDate).toLocaleDateString() : "Not scheduled"}</li>
-                  <li>Compliance documents: {restaurant.documents?.length || 0}</li>
-                  <li>Open complaints: {restaurant.openComplaintCount || 0}</li>
-                </ul>
+                <h3>Approved heading details</h3>
+                <div className="restaurant-heading-detail-list">
+                  {headingDetails.map((section) => (
+                    <section key={section.id} className="restaurant-heading-detail">
+                      <h4>{section.label}</h4>
+                      <ul className="restaurant-detail-list">
+                        {section.details.map((detail) => <li key={detail}>{detail}</li>)}
+                      </ul>
+                    </section>
+                  ))}
+                </div>
                 <button type="button" className="btn btn-primary" onClick={() => setReportOpen(true)}>
                   Report safety issue
                 </button>

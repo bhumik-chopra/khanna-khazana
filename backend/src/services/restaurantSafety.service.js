@@ -40,6 +40,18 @@ function normalizeVerificationSections(states = {}) {
   }, {});
 }
 
+const PUBLIC_SECTION_LABELS = {
+  basic_business: "Basic business details",
+  legal_compliance: "Legal and compliance",
+  kitchen_proof: "Kitchen proof",
+  staff_hygiene: "Staff hygiene",
+  food_handling: "Food handling and storage",
+  packaging_safety: "Packaging safety",
+  pest_control: "Pest control and cleanliness",
+  water_safety: "Water and ingredient safety",
+  self_declaration: "Self declaration"
+};
+
 function isPastDate(value) {
   if (!value) return false;
   const date = new Date(value);
@@ -87,6 +99,39 @@ function hasFullyApprovedSections(restaurant = {}) {
   const normalized = normalizeVerificationSections(restaurant.verificationSections);
   const values = Object.values(normalized);
   return values.length > 0 && values.every((item) => item.status === "approved");
+}
+
+function deriveScoreBand(score) {
+  if (score >= 85) return "excellent";
+  if (score >= 70) return "good";
+  if (score >= 50) return "needs_improvement";
+  return "poor";
+}
+
+function getHeadingSafetySummary(restaurant = {}) {
+  const normalized = normalizeVerificationSections(restaurant.verificationSections);
+  const sections = Object.entries(normalized).map(([id, state]) => ({
+    id,
+    label: PUBLIC_SECTION_LABELS[id] || id.replaceAll("_", " "),
+    status: state.status,
+    submittedAt: state.submittedAt || null,
+    reviewedAt: state.reviewedAt || null
+  }));
+  const total = sections.length;
+  const approved = sections.filter((section) => section.status === "approved").length;
+  const submitted = sections.filter((section) => section.status !== "draft").length;
+  const score = total ? Math.round((approved / total) * 100) : 0;
+
+  return {
+    score,
+    scoreBand: deriveScoreBand(score),
+    total,
+    submitted,
+    approved,
+    allApproved: total > 0 && approved === total,
+    approvedSections: sections.filter((section) => section.status === "approved"),
+    sections
+  };
 }
 
 async function createAuditEntry({
@@ -221,21 +266,22 @@ function enrichRestaurantForResponse(restaurant, extras = {}) {
 
   const json = restaurant.toObject ? restaurant.toObject() : { ...restaurant };
   const displayStatus = json.kitchenVerificationStatus === "expired" ? "pending" : json.kitchenVerificationStatus;
+  const headingSafety = getHeadingSafetySummary(json);
 
   return {
     ...json,
+    hygieneScore: headingSafety.score,
+    scoreBand: headingSafety.scoreBand,
+    headingSafety,
     kitchenVerificationStatus: displayStatus,
     id: String(json._id || json.id),
     documentCount: extras.documentCount ?? json.documentCount ?? 0,
     openComplaintCount: extras.openComplaintCount ?? json.openComplaintCount ?? 0,
     badges: {
-      verifiedKitchen: displayStatus === "verified",
-      hygieneChecked: Boolean(json.lastInspectionDate),
-      recentlyAudited: Boolean(
-        json.lastInspectionDate &&
-          new Date(json.lastInspectionDate) >= new Date(Date.now() - 1000 * 60 * 60 * 24 * 30)
-      ),
-      safePackaging: json.packagingStatus === "good"
+      verifiedKitchen: headingSafety.allApproved,
+      hygieneChecked: headingSafety.approvedSections.some((section) => section.id === "staff_hygiene"),
+      recentlyAudited: false,
+      safePackaging: headingSafety.approvedSections.some((section) => section.id === "packaging_safety")
     }
   };
 }

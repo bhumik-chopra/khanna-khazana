@@ -231,7 +231,6 @@ function MainSite({ clerkEnabled, isSignedIn }) {
   const [safetyFilters, setSafetyFilters] = useState({
     verifiedOnly: false,
     scoreAbove80: false,
-    recentlyInspected: false,
     safePackaging: false
   });
   const [cart, setCart] = useState({});
@@ -295,9 +294,8 @@ function MainSite({ clerkEnabled, isSignedIn }) {
     () =>
       restaurants.filter((restaurant) => {
         if (safetyFilters.verifiedOnly && !restaurant.badges?.verifiedKitchen) return false;
-        if (safetyFilters.scoreAbove80 && Number(restaurant.hygieneScore || 0) < 80) return false;
-        if (safetyFilters.recentlyInspected && !restaurant.badges?.recentlyAudited) return false;
-        if (safetyFilters.safePackaging && restaurant.packagingStatus !== "good") return false;
+        if (safetyFilters.scoreAbove80 && Number(restaurant.headingSafety?.score ?? restaurant.hygieneScore ?? 0) < 80) return false;
+        if (safetyFilters.safePackaging && !restaurant.badges?.safePackaging) return false;
         return true;
       }),
     [restaurants, safetyFilters]
@@ -558,7 +556,7 @@ function MainSite({ clerkEnabled, isSignedIn }) {
               <p className="badge badge-glass">Trusted kitchens</p>
               <h2 className="section-title">Browse restaurants with visible safety status</h2>
               <p className="section-subtitle">
-                Filter kitchens by verification, hygiene score, recent audit, and safe packaging before you order.
+                Filter kitchens by approved safety headings, heading score, and packaging approval before you order.
               </p>
             </div>
 

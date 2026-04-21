@@ -2,10 +2,15 @@ import React from "react";
 import { Link } from "react-router-dom";
 
 const badgeLabels = [
-  ["verifiedKitchen", "Verified Kitchen"],
-  ["hygieneChecked", "Hygiene Checked"],
-  ["recentlyAudited", "Recently Audited"]
+  ["verifiedKitchen", "All Headings Approved"],
+  ["safePackaging", "Packaging Approved"]
 ];
+
+const headingCount = (restaurant) => {
+  const approved = restaurant.headingSafety?.approved ?? 0;
+  const total = restaurant.headingSafety?.total ?? 0;
+  return `${approved}/${total}`;
+};
 
 const RestaurantGrid = ({ restaurants, onReport }) => (
   <div className="restaurant-grid">
@@ -17,12 +22,12 @@ const RestaurantGrid = ({ restaurants, onReport }) => (
             <h3>{restaurant.name}</h3>
           </div>
           <div className={`restaurant-score-badge is-${restaurant.scoreBand || "poor"}`}>
-            {restaurant.hygieneScore || 0}
+            {restaurant.headingSafety?.score ?? restaurant.hygieneScore ?? 0}
           </div>
         </div>
 
         <p className="restaurant-card-copy">
-          {restaurant.description || "Food safety profile maintained with active inspection and document review."}
+          {restaurant.description || "Safety profile based on submitted headings approved by KK Control."}
         </p>
 
         <div className="restaurant-badge-list">
@@ -41,12 +46,12 @@ const RestaurantGrid = ({ restaurants, onReport }) => (
             <dd>{restaurant.fssaiLicenseNumber || "Awaiting upload"}</dd>
           </div>
           <div>
-            <dt>Packaging</dt>
-            <dd>{restaurant.packagingStatus || "unchecked"}</dd>
+            <dt>Approved headings</dt>
+            <dd>{headingCount(restaurant)}</dd>
           </div>
           <div>
-            <dt>Last audit</dt>
-            <dd>{restaurant.lastInspectionDate ? new Date(restaurant.lastInspectionDate).toLocaleDateString() : "Not yet"}</dd>
+            <dt>Safety basis</dt>
+            <dd>Headings</dd>
           </div>
         </dl>
 
