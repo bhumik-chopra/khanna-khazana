@@ -7,7 +7,8 @@ const { canAccessRestaurant, requireDashboardUser } = require("../middleware/aut
 const cloudinary = require("../config/cloudinary");
 const {
   ensureDefaultRestaurant,
-  enrichRestaurantForResponse
+  enrichRestaurantForResponse,
+  getPublicRestaurantIds
 } = require("../services/restaurantSafety.service");
 
 const router = express.Router();
@@ -40,9 +41,7 @@ router.get("/", async (req, res) => {
     if (!req.auth) {
       filter = {
         restaurantId: {
-          $in: (await Restaurant.find({ kitchenVerificationStatus: "verified" }).select("_id")).map(
-            (item) => item._id
-          )
+          $in: await getPublicRestaurantIds()
         }
       };
     } else if (!req.auth.isPlatformAdmin) {
@@ -81,9 +80,7 @@ router.get("/categories", async (req, res) => {
     if (!req.auth) {
       filter = {
         restaurantId: {
-          $in: (await Restaurant.find({ kitchenVerificationStatus: "verified" }).select("_id")).map(
-            (item) => item._id
-          )
+          $in: await getPublicRestaurantIds()
         }
       };
     } else if (!req.auth.isPlatformAdmin) {

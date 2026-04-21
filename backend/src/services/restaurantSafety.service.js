@@ -83,6 +83,12 @@ function computeRestaurantStatusFromSections(states = {}) {
   return "pending";
 }
 
+function hasFullyApprovedSections(restaurant = {}) {
+  const normalized = normalizeVerificationSections(restaurant.verificationSections);
+  const values = Object.values(normalized);
+  return values.length > 0 && values.every((item) => item.status === "approved");
+}
+
 async function createAuditEntry({
   restaurantId,
   actionType,
@@ -166,7 +172,7 @@ async function recalculateRestaurantSafety(restaurantId, metadata = {}) {
     restaurant.verificationSections
   );
 
-  if (restaurant.kitchenVerificationStatus === "verified" && safety.totalScore < 80) {
+  if (inspection && restaurant.kitchenVerificationStatus === "verified" && safety.totalScore < 80) {
     restaurant.kitchenVerificationStatus = "needs_reinspection";
   }
 
@@ -203,6 +209,13 @@ async function recalculateRestaurantSafety(restaurantId, metadata = {}) {
   };
 }
 
+async function getPublicRestaurantIds() {
+  const restaurants = await Restaurant.find({
+    kitchenVerificationStatus: { $nin: ["rejected", "expired"] }
+  });
+  return restaurants.filter(hasFullyApprovedSections).map((restaurant) => restaurant._id);
+}
+
 function enrichRestaurantForResponse(restaurant, extras = {}) {
   if (!restaurant) return null;
 
@@ -231,6 +244,7 @@ module.exports = {
   createAuditEntry,
   ensureDefaultRestaurant,
   enrichRestaurantForResponse,
+  getPublicRestaurantIds,
   recalculateRestaurantSafety,
   slugify
 };

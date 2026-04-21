@@ -12,6 +12,7 @@ const {
   createAuditEntry,
   ensureDefaultRestaurant,
   enrichRestaurantForResponse,
+  getPublicRestaurantIds,
   recalculateRestaurantSafety,
   slugify
 } = require("../services/restaurantSafety.service");
@@ -183,7 +184,7 @@ router.get("/", async (req, res) => {
     let filter = {};
 
     if (!req.auth) {
-      filter = { kitchenVerificationStatus: "verified" };
+      filter = { _id: { $in: await getPublicRestaurantIds() } };
     } else if (!req.auth.isPlatformAdmin) {
       filter = { ownerClerkUserId: req.auth.clerkUserId };
     }
@@ -228,8 +229,12 @@ router.get("/:id", async (req, res) => {
   try {
     const restaurant = await Restaurant.findById(req.params.id);
     if (!restaurant) return res.status(404).json({ message: "Restaurant not found" });
-    if (!req.auth && restaurant.kitchenVerificationStatus !== "verified") {
-      return res.status(404).json({ message: "Restaurant not found" });
+    if (!req.auth) {
+      const publicRestaurantIds = await getPublicRestaurantIds();
+      const isPublicRestaurant = publicRestaurantIds.some((id) => String(id) === String(restaurant._id));
+      if (!isPublicRestaurant) {
+        return res.status(404).json({ message: "Restaurant not found" });
+      }
     }
 
     const isOwnerView = canAccessRestaurant(req, restaurant);
