@@ -42,7 +42,7 @@ const DishCard = ({ dish, qty, onAddToCart, onIncrease, onDecrease }) => {
 
   return (
     <StarBorder as="div" radius={22} className="dish-grid-border" color="orange" speed="5s">
-      <motion.article className="dish-card-scene" whileTap={{ scale: 0.97 }}>
+      <motion.article className="dish-card-scene">
         <motion.div
           className="dish-card-shell"
           onClick={() => setFlipped((current) => !current)}
