@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Toast from "../components/Toast";
 
@@ -49,7 +49,9 @@ export default function Approval() {
   const [sectionRemarks, setSectionRemarks] = useState({});
   const [savingSectionId, setSavingSectionId] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [toast, setToast] = useState({ open: false, type: "success", title: "", message: "" });
+  const detailRequestRef = useRef(0);
 
   const showToast = (type, title, message) => setToast({ open: true, type, title, message });
   const adminToken = localStorage.getItem("admin_token");
@@ -70,18 +72,19 @@ export default function Approval() {
   const loadRestaurants = useCallback(async (preferredId = "") => {
     const data = sortRestaurants(await fetchJson(`${API_BASE}/api/restaurants`));
     setRestaurants(data);
-    const nextId = preferredId || selectedRestaurantId || data[0]?.id || "";
-    setSelectedRestaurantId(nextId);
+    setSelectedRestaurantId((current) => preferredId || current || data[0]?.id || "");
     return data;
-  }, [fetchJson, selectedRestaurantId]);
+  }, [fetchJson]);
 
   const loadRestaurantDetail = useCallback(async (restaurantId, options = {}) => {
+    const requestId = ++detailRequestRef.current;
     if (!restaurantId) {
       setSelectedRestaurant(null);
       return;
     }
 
     const detail = await fetchJson(`${API_BASE}/api/restaurants/${restaurantId}`);
+    if (requestId !== detailRequestRef.current) return;
     const nextRemarks = Object.fromEntries(
       SECTION_DEFINITIONS.map((section) => [
         section.id,
@@ -143,10 +146,13 @@ export default function Approval() {
   }, [adminToken, loadRestaurants, navigate]);
 
   useEffect(() => {
-    if (!selectedRestaurantId) return;
-    loadRestaurantDetail(selectedRestaurantId).catch((err) =>
-      showToast("error", "Detail failed", err.message || "Could not fetch restaurant details.")
-    );
+    if (!selectedRestaurantId) return undefined;
+    setIsDetailLoading(true);
+    setExpandedSectionId("");
+    loadRestaurantDetail(selectedRestaurantId)
+      .catch((err) => showToast("error", "Detail failed", err.message || "Could not fetch restaurant details."))
+      .finally(() => setIsDetailLoading(false));
+    return undefined;
   }, [loadRestaurantDetail, selectedRestaurantId]);
 
   useEffect(() => {
@@ -239,7 +245,12 @@ export default function Approval() {
                   key={item.id}
                   type="button"
                   className={`admin-restaurant-card ${selectedRestaurantId === item.id ? "is-selected" : ""}`}
-                  onClick={() => setSelectedRestaurantId(item.id)}
+                  onClick={() => {
+                    if (item.id !== selectedRestaurantId) {
+                      setSelectedRestaurant(null);
+                    }
+                    setSelectedRestaurantId(item.id);
+                  }}
                 >
                   <strong>{item.name}</strong>
                   <span>{item.ownerName || item.ownerDisplayName || "Owner not added"}</span>
@@ -254,6 +265,8 @@ export default function Approval() {
           <section className="admin-content-panel admin-approval-content-panel">
             {isLoading ? (
               <div className="admin-empty-state">Loading restaurant approvals...</div>
+            ) : isDetailLoading && !selectedRestaurant ? (
+              <div className="admin-empty-state">Loading selected restaurant...</div>
             ) : !selectedRestaurant ? (
               <div className="admin-empty-state">Pick a restaurant to review its headings.</div>
             ) : (
