@@ -322,10 +322,11 @@ router.post("/", requireDashboardUser, async (req, res) => {
     const acceptedDeclaration = parseBoolean(selfDeclarationAccepted);
 
     const isPlatformAdmin = req.auth.isPlatformAdmin;
+    const submittedSection = String(submittedSectionId || "").trim();
     const nextVerificationSections = applyLegalComplianceExpiry(
-      req.auth.isPlatformAdmin
-        ? normalizeVerificationSections(existing?.verificationSections)
-        : markSectionSubmitted(existing?.verificationSections, String(submittedSectionId || "").trim()),
+      submittedSection
+        ? markSectionSubmitted(existing?.verificationSections, submittedSection)
+        : normalizeVerificationSections(existing?.verificationSections),
       fssaiExpiryDate
     );
     const payload = {
