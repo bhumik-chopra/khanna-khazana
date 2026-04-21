@@ -39,6 +39,7 @@ export default function RestLogin() {
     password: "",
     code: ""
   });
+  const [authBusy, setAuthBusy] = useState("");
   const [toast, setToast] = useState({
     open: false,
     type: "success",
@@ -64,9 +65,10 @@ export default function RestLogin() {
 
   const submitRestaurantLogin = async (e) => {
     e.preventDefault();
-    if (!signInLoaded) return;
+    if (!signInLoaded || authBusy) return;
 
     try {
+      setAuthBusy("sign-in");
       const identifier = toRestaurantIdentifier(signInForm.restaurantName);
       const result = await signIn.create({
         identifier,
@@ -84,15 +86,18 @@ export default function RestLogin() {
     } catch (err) {
       const message = err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err.message || "Login failed";
       showToast("error", "Login failed", message);
+    } finally {
+      setAuthBusy("");
     }
   };
 
   const submitRestaurantSignUp = async (e) => {
     e.preventDefault();
 
-    if (!signUpLoaded) return;
+    if (!signUpLoaded || authBusy) return;
 
     try {
+      setAuthBusy("sign-up");
       await signUp.create({
         username: toRestaurantUsername(signUpForm.restaurantName),
         emailAddress: signUpForm.emailAddress,
@@ -111,14 +116,17 @@ export default function RestLogin() {
     } catch (err) {
       const message = err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err.message || "Sign up failed";
       showToast("error", "Sign up failed", message);
+    } finally {
+      setAuthBusy("");
     }
   };
 
   const verifyRestaurantSignUp = async (e) => {
     e.preventDefault();
-    if (!signUpLoaded) return;
+    if (!signUpLoaded || authBusy) return;
 
     try {
+      setAuthBusy("verify");
       const result = await signUp.attemptEmailAddressVerification({
         code: signUpForm.code
       });
@@ -134,6 +142,8 @@ export default function RestLogin() {
     } catch (err) {
       const message = err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err.message || "Verification failed";
       showToast("error", "Verification failed", message);
+    } finally {
+      setAuthBusy("");
     }
   };
 
@@ -201,7 +211,9 @@ export default function RestLogin() {
                       <span>Password</span>
                       <input type="password" value={signInForm.password} onChange={(e) => updateSignInField("password", e.target.value)} />
                     </label>
-                    <button className="btn btn-primary admin-button-full">Login to your restaurant panel</button>
+                    <button className={`btn btn-primary admin-button-full ${authBusy === "sign-in" ? "is-loading" : ""}`} disabled={Boolean(authBusy)}>
+                      {authBusy === "sign-in" ? "Logging in..." : "Login to your restaurant panel"}
+                    </button>
                   </form>
                 ) : (
                   <div className="admin-signup-shell">
@@ -227,7 +239,9 @@ export default function RestLogin() {
                           <span>Password</span>
                           <input type="password" value={signUpForm.password} onChange={(e) => updateSignUpField("password", e.target.value)} />
                         </label>
-                        <button className="btn btn-primary admin-button-full">Create restaurant account</button>
+                        <button className={`btn btn-primary admin-button-full ${authBusy === "sign-up" ? "is-loading" : ""}`} disabled={Boolean(authBusy)}>
+                          {authBusy === "sign-up" ? "Creating account..." : "Create restaurant account"}
+                        </button>
                       </form>
                     ) : (
                       <form onSubmit={verifyRestaurantSignUp} className="admin-form">
@@ -241,8 +255,10 @@ export default function RestLogin() {
                           <span>Email verification code</span>
                           <input value={signUpForm.code} onChange={(e) => updateSignUpField("code", e.target.value)} />
                         </label>
-                        <button className="btn btn-primary admin-button-full">Verify email and continue</button>
-                        <button type="button" className="btn admin-secondary-button" onClick={() => setSignUpStep("collect")}>
+                        <button className={`btn btn-primary admin-button-full ${authBusy === "verify" ? "is-loading" : ""}`} disabled={Boolean(authBusy)}>
+                          {authBusy === "verify" ? "Verifying..." : "Verify email and continue"}
+                        </button>
+                        <button type="button" className="btn admin-secondary-button" disabled={Boolean(authBusy)} onClick={() => setSignUpStep("collect")}>
                           Back
                         </button>
                       </form>

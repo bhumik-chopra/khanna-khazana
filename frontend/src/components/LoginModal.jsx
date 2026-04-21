@@ -419,7 +419,7 @@ export default function LoginModal({ open, onClose, onPartner }) {
 
                       <button
                         type="button"
-                        className="kk-auth-custom-button login-modal-target"
+                        className={`kk-auth-custom-button login-modal-target ${busy ? "is-loading" : ""}`}
                         onClick={step === "collect" ? startEmailFlow : verifyEmailCode}
                         disabled={busy}
                       >
@@ -436,7 +436,7 @@ export default function LoginModal({ open, onClose, onPartner }) {
                         <div className="kk-auth-verify-actions">
                           <button
                             type="button"
-                            className="kk-auth-link-button login-modal-target"
+                            className={`kk-auth-link-button login-modal-target ${busy ? "is-loading" : ""}`}
                             onClick={resendVerificationCode}
                             disabled={busy}
                           >

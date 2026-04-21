@@ -48,9 +48,11 @@ const getApprovedHeadingDetails = (restaurant) =>
 const RestaurantDetailPage = ({ apiBase }) => {
   const { id } = useParams();
   const [restaurant, setRestaurant] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [reportOpen, setReportOpen] = useState(false);
 
   useEffect(() => {
+    setIsLoading(true);
     fetch(`${apiBase}/api/restaurants/${id}`)
       .then(async (res) => {
         const data = await res.json();
@@ -58,10 +60,11 @@ const RestaurantDetailPage = ({ apiBase }) => {
         return data;
       })
       .then((data) => setRestaurant(data))
-      .catch(() => setRestaurant(null));
+      .catch(() => setRestaurant(null))
+      .finally(() => setIsLoading(false));
   }, [apiBase, id]);
 
-  if (!restaurant) {
+  if (isLoading || !restaurant) {
     return (
       <div className="app-shell">
         <main className="site-main">
@@ -70,7 +73,10 @@ const RestaurantDetailPage = ({ apiBase }) => {
               <Link to="/" className="btn btn-outline">
                 Back to kitchens
               </Link>
-              <p className="section-subtitle">Loading restaurant safety profile...</p>
+              <p className="section-subtitle">
+                {isLoading ? "Loading restaurant safety profile..." : "Restaurant safety profile is not available."}
+              </p>
+              {isLoading ? <div className="kk-loading-state">Fetching safety details...</div> : null}
             </div>
           </section>
         </main>

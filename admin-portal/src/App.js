@@ -45,9 +45,8 @@ function useFoodBackgroundMotion() {
 
 function RequireAuth({ children }) {
   const { isLoaded, isSignedIn } = useAuth();
-  const token = localStorage.getItem("admin_token");
-  if (!isLoaded && !token) return null;
-  if (!token && !isSignedIn) return <Navigate to="/" replace />;
+  if (!isLoaded) return null;
+  if (!isSignedIn) return <Navigate to="/" replace />;
   return children;
 }
 

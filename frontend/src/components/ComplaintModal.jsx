@@ -89,7 +89,7 @@ const ComplaintModal = ({ open, restaurant, onClose, onSubmitted, apiBase }) => 
               <span>Contact</span>
               <input value={form.reporterContact} onChange={(e) => setForm((prev) => ({ ...prev, reporterContact: e.target.value }))} />
             </label>
-            <button className="btn btn-primary" disabled={submitting}>
+            <button className={`btn btn-primary ${submitting ? "is-loading" : ""}`} disabled={submitting}>
               {submitting ? "Submitting..." : "Submit report"}
             </button>
           </form>

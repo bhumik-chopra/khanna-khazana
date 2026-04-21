@@ -10,6 +10,7 @@ export default function AdminLogin() {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState({
     open: false,
     type: "success",
@@ -34,6 +35,7 @@ export default function AdminLogin() {
     }
 
     try {
+      setIsSubmitting(true);
       const res = await fetch(`${API_BASE}/api/admin/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -54,6 +56,8 @@ export default function AdminLogin() {
       setTimeout(() => navigate("/approval"), 200);
     } catch (err) {
       showToast("error", "Network error", err.message || "Backend not reachable");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -91,7 +95,9 @@ export default function AdminLogin() {
               />
             </label>
 
-            <button className="btn btn-primary admin-button-full">Enter control deck</button>
+            <button className={`btn btn-primary admin-button-full ${isSubmitting ? "is-loading" : ""}`} disabled={isSubmitting}>
+              {isSubmitting ? "Entering..." : "Enter control deck"}
+            </button>
 
             <button
               type="button"

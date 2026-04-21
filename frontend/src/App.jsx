@@ -238,6 +238,7 @@ function MainSite({ clerkEnabled, isSignedIn }) {
   const [checkoutChooserOpen, setCheckoutChooserOpen] = useState(false);
   const [upiInfoOpen, setUpiInfoOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [isCatalogLoading, setIsCatalogLoading] = useState(true);
   const [complaintRestaurant, setComplaintRestaurant] = useState(null);
   const [toast, setToast] = useState({ open: false, type: "success", title: "", message: "" });
 
@@ -274,9 +275,9 @@ function MainSite({ clerkEnabled, isSignedIn }) {
   };
 
   useEffect(() => {
-    loadDishes();
-    loadCategories();
-    loadRestaurants();
+    setIsCatalogLoading(true);
+    Promise.all([loadDishes(), loadCategories(), loadRestaurants()])
+      .finally(() => setIsCatalogLoading(false));
   }, []);
 
   useEffect(() => {
@@ -562,10 +563,14 @@ function MainSite({ clerkEnabled, isSignedIn }) {
 
             <SafetyFilterBar filters={safetyFilters} onChange={handleSafetyFilterChange} />
 
-            <RestaurantGrid
-              restaurants={filteredRestaurants}
-              onReport={(restaurant) => setComplaintRestaurant(restaurant)}
-            />
+            {isCatalogLoading ? (
+              <div className="kk-loading-state">Loading trusted kitchens...</div>
+            ) : (
+              <RestaurantGrid
+                restaurants={filteredRestaurants}
+                onReport={(restaurant) => setComplaintRestaurant(restaurant)}
+              />
+            )}
 
             <div className="section-header section-header-left">
               <p className="badge badge-glass">Live menu radar</p>
@@ -582,13 +587,17 @@ function MainSite({ clerkEnabled, isSignedIn }) {
               onChange={setActiveCategory}
             />
 
-            <DishGrid
-              dishes={filteredDishes}
-              cartItems={cart}
-              onAddToCart={handleAddToCart}
-              onIncrease={handleIncrease}
-              onDecrease={handleDecrease}
-            />
+            {isCatalogLoading ? (
+              <div className="kk-loading-state">Loading fresh plates...</div>
+            ) : (
+              <DishGrid
+                dishes={filteredDishes}
+                cartItems={cart}
+                onAddToCart={handleAddToCart}
+                onIncrease={handleIncrease}
+                onDecrease={handleDecrease}
+              />
+            )}
           </div>
         </section>
 
@@ -635,6 +644,7 @@ function MainSite({ clerkEnabled, isSignedIn }) {
                     type="button"
                     className="kk-checkout-option kk-checkout-option-primary"
                     onClick={handleCheckoutFromChooser}
+                    disabled={isCheckingOut}
                   >
                     <span className="kk-checkout-option-tag">Recommended</span>
                     <strong>Pay with Razorpay</strong>
@@ -642,7 +652,7 @@ function MainSite({ clerkEnabled, isSignedIn }) {
                       Open the full checkout with cards, UPI, netbanking, and any other supported payment methods.
                     </span>
                   </button>
-                  <button type="button" className="kk-checkout-option" onClick={handleOpenUpiGuide}>
+                  <button type="button" className="kk-checkout-option" onClick={handleOpenUpiGuide} disabled={isCheckingOut}>
                     <span className="kk-checkout-option-tag">UPI helper</span>
                     <strong>Show UPI QR / scan instructions</strong>
                     <span>
@@ -694,8 +704,8 @@ function MainSite({ clerkEnabled, isSignedIn }) {
                   <button type="button" className="btn btn-outline" onClick={() => setUpiInfoOpen(false)}>
                     Back
                   </button>
-                  <button type="button" className="btn btn-primary" onClick={handleTryUpiCheckout}>
-                    Continue to Razorpay
+                  <button type="button" className={`btn btn-primary ${isCheckingOut ? "is-loading" : ""}`} disabled={isCheckingOut} onClick={handleTryUpiCheckout}>
+                    {isCheckingOut ? "Opening checkout..." : "Continue to Razorpay"}
                   </button>
                 </div>
               </div>

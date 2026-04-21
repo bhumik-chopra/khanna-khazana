@@ -212,7 +212,6 @@ const hasFieldValue = (value) => {
 
 export default function RestPanel() {
   const navigate = useNavigate();
-  const token = useMemo(() => localStorage.getItem("admin_token"), []);
   const { getToken, isLoaded, isSignedIn } = useAuth();
   const { user } = useUser();
   const { signOut } = useClerk();
@@ -234,6 +233,9 @@ export default function RestPanel() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isBootstrappingRestaurant, setIsBootstrappingRestaurant] = useState(false);
   const [isSubmittingVerification, setIsSubmittingVerification] = useState(false);
+  const [isDishSaving, setIsDishSaving] = useState(false);
+  const [isComplaintSaving, setIsComplaintSaving] = useState(false);
+  const [isDeletingDish, setIsDeletingDish] = useState(false);
   const [toast, setToast] = useState({ open: false, type: "success", title: "", message: "" });
   const [selectedRestaurantDetail, setSelectedRestaurantDetail] = useState(null);
   const [editingApprovalSectionId, setEditingApprovalSectionId] = useState("");
@@ -244,12 +246,10 @@ export default function RestPanel() {
 
   const showToast = (type, title, message) => setToast({ open: true, type, title, message });
   const logout = async () => {
-    const localToken = localStorage.getItem("admin_token");
-    localStorage.removeItem("admin_token");
     if (isSignedIn) {
       await signOut();
     }
-    navigate(localToken ? "/admin-login" : "/login");
+    navigate("/login");
   };
   const selectedRestaurantSummary = restaurants.find((item) => item.id === selectedRestaurantId) || null;
   const selectedRestaurant = selectedRestaurantDetail || selectedRestaurantSummary;
@@ -266,12 +266,8 @@ export default function RestPanel() {
     "Owner";
 
   const fetchJson = async (url, options = {}) => {
-    const localToken = localStorage.getItem("admin_token");
-    const clerkToken = !localToken && isSignedIn ? await getToken() : null;
-    const authHeaders =
-      localToken || clerkToken
-        ? { Authorization: `Bearer ${localToken || clerkToken}` }
-        : {};
+    const clerkToken = isSignedIn ? await getToken() : null;
+    const authHeaders = clerkToken ? { Authorization: `Bearer ${clerkToken}` } : {};
 
     const res = await fetch(url, {
       ...options,
@@ -341,13 +337,13 @@ export default function RestPanel() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (!token && !isLoaded) return;
-    if (!token && !isSignedIn) return;
+    if (!isLoaded) return;
+    if (!isSignedIn) return;
     loadRestaurants().catch(() => {});
     loadComplaints().catch(() => {});
     loadDishes().catch(() => {});
     loadCategories().catch(() => {});
-  }, [isLoaded, isSignedIn, token]);
+  }, [isLoaded, isSignedIn]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (selectedRestaurantId) loadRestaurantDetails(selectedRestaurantId).catch(() => {}); }, [selectedRestaurantId]);
   useEffect(() => {
@@ -453,7 +449,6 @@ export default function RestPanel() {
     [approvalSections]
   );
   useEffect(() => {
-    if (token) return;
     if (!isLoaded || !isSignedIn || !user) return;
     if (restaurants.length > 0) return;
     if (isBootstrappingRestaurant) return;
@@ -485,7 +480,7 @@ export default function RestPanel() {
       })
       .catch(() => {})
       .finally(() => setIsBootstrappingRestaurant(false));
-  }, [isBootstrappingRestaurant, isLoaded, isSignedIn, restaurants.length, token, user]);
+  }, [isBootstrappingRestaurant, isLoaded, isSignedIn, restaurants.length, user]);
 
   const uploadVerificationDocuments = async (restaurantId, sectionId, files, setFiles) => {
     const allowedKeys = new Set(SECTION_DOCUMENT_KEYS[sectionId] || []);
@@ -497,7 +492,7 @@ export default function RestPanel() {
       fd.append("type", item.type);
       fd.append("label", item.label);
       fd.append("file", files[item.key]);
-      fd.append("uploadedBy", token ? "admin" : (user?.primaryEmailAddress?.emailAddress || "restaurant_owner"));
+      fd.append("uploadedBy", user?.primaryEmailAddress?.emailAddress || "restaurant_owner");
       fd.append("sectionId", sectionId);
       await fetchJson(`${API_BASE}/api/restaurants/${restaurantId}/documents`, { method: "POST", body: fd });
     }
@@ -619,11 +614,13 @@ export default function RestPanel() {
 
   const saveDish = async (e, mode) => {
     e.preventDefault();
+    if (isDishSaving) return;
     const form = mode === "add" ? addForm : updateForm;
     const category = form.categoryMode === "new" ? form.newCategory.trim() : form.selectedCategory.trim();
     if (!form.name.trim() || !form.price || !category) return showToast("error", "Missing fields", "Name, price and category are required.");
     if (mode === "add" && !form.image) return showToast("error", "Image required", "Please upload an image.");
     try {
+      setIsDishSaving(true);
       const url = mode === "add" ? `${API_BASE}/api/dishes` : `${API_BASE}/api/dishes/${editingDishId}`;
       const method = mode === "add" ? "POST" : "PUT";
       const data = await fetchJson(url, { method, body: buildDishFormData(form, category) });
@@ -641,6 +638,7 @@ export default function RestPanel() {
       }
       if (mode === "update") setEditingDishId(data.id);
     } catch (err) { showToast("error", "Dish save failed", err.message); }
+    finally { setIsDishSaving(false); }
   };
 
   const selectDish = (dish) => {
@@ -653,7 +651,9 @@ export default function RestPanel() {
 
     const reviewComplaint = async (e) => {
     e.preventDefault();
+    if (isComplaintSaving) return;
     try {
+      setIsComplaintSaving(true);
       await fetchJson(`${API_BASE}/api/complaints/${selectedComplaintId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(complaintReview) });
       showToast("success", "Complaint updated", "Review saved.");
       setSelectedComplaintId("");
@@ -661,15 +661,19 @@ export default function RestPanel() {
       await loadComplaints();
       if (selectedRestaurantId) { await loadRestaurants(selectedRestaurantId); await loadRestaurantDetails(selectedRestaurantId); }
     } catch (err) { showToast("error", "Complaint update failed", err.message); }
+    finally { setIsComplaintSaving(false); }
   };
 
   const deleteDish = async () => {
+    if (isDeletingDish || !deleteTarget) return;
     try {
+      setIsDeletingDish(true);
       await fetchJson(`${API_BASE}/api/dishes/${deleteTarget.id || deleteTarget._id}`, { method: "DELETE" });
       showToast("success", "Dish deleted", `${deleteTarget.name} removed.`);
       setDeleteTarget(null);
       await loadDishes();
     } catch (err) { showToast("error", "Delete failed", err.message); }
+    finally { setIsDeletingDish(false); }
   };
 
   const filteredDishes = dishes.filter((dish) => {
@@ -818,14 +822,14 @@ export default function RestPanel() {
               <div className="admin-remove-shell">
                 <div className="admin-form-header"><h2>Complaint review</h2><p>Review hygiene complaints and trigger reinspection when needed.</p></div>
                 <div className="admin-complaint-list">{complaints.map((item) => <button key={item.id} type="button" className={`admin-complaint-card ${selectedComplaintId === item.id ? "is-selected" : ""}`} onClick={() => { setSelectedComplaintId(item.id); setComplaintReview({ status: item.status || "in_review", resolutionNote: item.resolutionNote || "", reviewedBy: "admin", triggeredReinspection: Boolean(item.triggeredReinspection) }); }}><strong>{item.complaintType.replaceAll("_", " ")}</strong><span>{item.restaurant?.name || "Unknown restaurant"}</span><small>{item.status.replaceAll("_", " ")}</small></button>)}</div>
-                {selectedComplaintId ? <form onSubmit={reviewComplaint} className="admin-form admin-grid-form"><label className="admin-field"><span>Status</span><select value={complaintReview.status} onChange={(e) => setComplaintReview((p) => ({ ...p, status: e.target.value }))}>{["open", "in_review", "resolved", "reinspection_triggered", "rejected"].map((v) => <option key={v} value={v}>{v}</option>)}</select></label><label className="admin-field"><span>Reviewed by</span><input value={complaintReview.reviewedBy} onChange={(e) => setComplaintReview((p) => ({ ...p, reviewedBy: e.target.value }))} /></label><label className="admin-field admin-field-full"><span>Resolution note</span><textarea rows={4} value={complaintReview.resolutionNote} onChange={(e) => setComplaintReview((p) => ({ ...p, resolutionNote: e.target.value }))} /></label><label className="admin-checkbox"><input type="checkbox" checked={complaintReview.triggeredReinspection} onChange={(e) => setComplaintReview((p) => ({ ...p, triggeredReinspection: e.target.checked }))} /><span>Trigger reinspection</span></label><button className="btn btn-primary admin-button-full">Save review</button></form> : <div className="admin-empty-state">Select a complaint to review it.</div>}
+                {selectedComplaintId ? <form onSubmit={reviewComplaint} className="admin-form admin-grid-form"><label className="admin-field"><span>Status</span><select value={complaintReview.status} onChange={(e) => setComplaintReview((p) => ({ ...p, status: e.target.value }))}>{["open", "in_review", "resolved", "reinspection_triggered", "rejected"].map((v) => <option key={v} value={v}>{v}</option>)}</select></label><label className="admin-field"><span>Reviewed by</span><input value={complaintReview.reviewedBy} onChange={(e) => setComplaintReview((p) => ({ ...p, reviewedBy: e.target.value }))} /></label><label className="admin-field admin-field-full"><span>Resolution note</span><textarea rows={4} value={complaintReview.resolutionNote} onChange={(e) => setComplaintReview((p) => ({ ...p, resolutionNote: e.target.value }))} /></label><label className="admin-checkbox"><input type="checkbox" checked={complaintReview.triggeredReinspection} onChange={(e) => setComplaintReview((p) => ({ ...p, triggeredReinspection: e.target.checked }))} /><span>Trigger reinspection</span></label><button className={`btn btn-primary admin-button-full ${isComplaintSaving ? "is-loading" : ""}`} disabled={isComplaintSaving}>{isComplaintSaving ? "Saving review..." : "Save review"}</button></form> : <div className="admin-empty-state">Select a complaint to review it.</div>}
               </div>
             ) : null}
             {["add", "update", "remove"].includes(activeTab) ? (
               <div className="admin-remove-shell">
                 <div className="admin-form-header"><h2>{activeTab === "add" ? "Add dish" : activeTab === "update" ? "Update dishes" : "Remove dishes"}</h2><p>Dishes are linked automatically to the restaurant account that is currently logged in.</p></div>
                 {activeTab !== "add" ? <div className="admin-search-row"><input className="admin-search-input" value={dishSearch} onChange={(e) => setDishSearch(e.target.value)} placeholder="Search by name or category" /><button className="btn admin-secondary-button" onClick={() => loadDishes().catch(() => {})}>Refresh</button></div> : null}
-                {activeTab === "add" || editingDishId ? <form key={activeTab === "add" ? addDishFormKey : editingDishId} onSubmit={(e) => saveDish(e, activeTab === "add" ? "add" : "update")} className="admin-form admin-grid-form"><label className="admin-field admin-field-full"><span>Dish name</span><input value={(activeTab === "add" ? addForm : updateForm).name} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, name: e.target.value }))} /></label><label className="admin-field admin-field-full"><span>Description</span><textarea rows={4} value={(activeTab === "add" ? addForm : updateForm).description} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, description: e.target.value }))} /></label><label className="admin-field"><span>Price</span><input type="number" value={(activeTab === "add" ? addForm : updateForm).price} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, price: e.target.value }))} /></label><label className="admin-field"><span>Restaurant</span><input value={displayRestaurantName} disabled /></label><label className="admin-field"><span>Category mode</span><select value={(activeTab === "add" ? addForm : updateForm).categoryMode} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, categoryMode: e.target.value }))}><option value="existing" disabled={!categories.length}>existing</option><option value="new">new</option></select></label>{((activeTab === "add" ? addForm : updateForm).categoryMode === "existing") ? <label className="admin-field"><span>Category</span><select value={(activeTab === "add" ? addForm : updateForm).selectedCategory} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, selectedCategory: e.target.value }))} disabled={!categories.length}><option value="">{categories.length ? "Select existing category" : "No existing categories yet"}</option>{categories.map((item) => <option key={item} value={item}>{item}</option>)}</select></label> : <label className="admin-field"><span>New category</span><input value={(activeTab === "add" ? addForm : updateForm).newCategory} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, newCategory: e.target.value }))} /></label>}<label className="admin-field"><span>Prep time</span><input value={(activeTab === "add" ? addForm : updateForm).prepTime} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, prepTime: e.target.value }))} /></label><label className="admin-field admin-field-full"><span>Tags</span><input value={(activeTab === "add" ? addForm : updateForm).tags} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, tags: e.target.value }))} /></label><label className="admin-checkbox"><input type="checkbox" checked={(activeTab === "add" ? addForm : updateForm).isBestseller} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, isBestseller: e.target.checked }))} /><span>Highlight as bestseller</span></label><label className="admin-field admin-field-full"><span>{activeTab === "add" ? "Dish image" : "Replace dish image"}</span><input type="file" accept="image/*" onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, image: e.target.files?.[0] || null }))} /></label><button className="btn btn-primary admin-button-full">{activeTab === "add" ? "Save dish" : "Update dish"}</button></form> : <div className="admin-empty-state">Pick a dish below to edit it.</div>}
+                {activeTab === "add" || editingDishId ? <form key={activeTab === "add" ? addDishFormKey : editingDishId} onSubmit={(e) => saveDish(e, activeTab === "add" ? "add" : "update")} className="admin-form admin-grid-form"><label className="admin-field admin-field-full"><span>Dish name</span><input value={(activeTab === "add" ? addForm : updateForm).name} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, name: e.target.value }))} /></label><label className="admin-field admin-field-full"><span>Description</span><textarea rows={4} value={(activeTab === "add" ? addForm : updateForm).description} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, description: e.target.value }))} /></label><label className="admin-field"><span>Price</span><input type="number" value={(activeTab === "add" ? addForm : updateForm).price} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, price: e.target.value }))} /></label><label className="admin-field"><span>Restaurant</span><input value={displayRestaurantName} disabled /></label><label className="admin-field"><span>Category mode</span><select value={(activeTab === "add" ? addForm : updateForm).categoryMode} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, categoryMode: e.target.value }))}><option value="existing" disabled={!categories.length}>existing</option><option value="new">new</option></select></label>{((activeTab === "add" ? addForm : updateForm).categoryMode === "existing") ? <label className="admin-field"><span>Category</span><select value={(activeTab === "add" ? addForm : updateForm).selectedCategory} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, selectedCategory: e.target.value }))} disabled={!categories.length}><option value="">{categories.length ? "Select existing category" : "No existing categories yet"}</option>{categories.map((item) => <option key={item} value={item}>{item}</option>)}</select></label> : <label className="admin-field"><span>New category</span><input value={(activeTab === "add" ? addForm : updateForm).newCategory} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, newCategory: e.target.value }))} /></label>}<label className="admin-field"><span>Prep time</span><input value={(activeTab === "add" ? addForm : updateForm).prepTime} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, prepTime: e.target.value }))} /></label><label className="admin-field admin-field-full"><span>Tags</span><input value={(activeTab === "add" ? addForm : updateForm).tags} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, tags: e.target.value }))} /></label><label className="admin-checkbox"><input type="checkbox" checked={(activeTab === "add" ? addForm : updateForm).isBestseller} onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, isBestseller: e.target.checked }))} /><span>Highlight as bestseller</span></label><label className="admin-field admin-field-full"><span>{activeTab === "add" ? "Dish image" : "Replace dish image"}</span><input type="file" accept="image/*" onChange={(e) => (activeTab === "add" ? setAddForm : setUpdateForm)((p) => ({ ...p, image: e.target.files?.[0] || null }))} /></label><button className={`btn btn-primary admin-button-full ${isDishSaving ? "is-loading" : ""}`} disabled={isDishSaving}>{isDishSaving ? (activeTab === "add" ? "Saving dish..." : "Updating dish...") : (activeTab === "add" ? "Save dish" : "Update dish")}</button></form> : <div className="admin-empty-state">Pick a dish below to edit it.</div>}
                 {activeTab !== "add" ? <div className="admin-dish-list">{filteredDishes.map((dish) => <div key={dish.id || dish._id} className={`admin-dish-row ${editingDishId === (dish.id || dish._id) ? "is-selected" : ""}`}><div><div className="admin-dish-name">{dish.name}</div><div className="admin-dish-meta">{dish.category} / Rs {dish.price} / {dish.restaurant?.name || "No restaurant"}</div></div>{activeTab === "remove" ? <button type="button" className="btn admin-danger-button" onClick={() => setDeleteTarget(dish)}>Delete</button> : <button type="button" className="btn admin-secondary-button" onClick={() => selectDish(dish)}>Edit</button>}</div>)}</div> : null}
               </div>
             ) : null}
@@ -834,7 +838,7 @@ export default function RestPanel() {
       </div>
       <Toast open={toast.open} type={toast.type} title={toast.title} message={toast.message} onClose={() => setToast((t) => ({ ...t, open: false }))} />
       {editingApprovalSectionId ? <div className="confirm-dialog-backdrop" role="presentation"><div className="confirm-dialog-card admin-section-modal" role="dialog" aria-modal="true"><div className="confirm-dialog-badge">Update rejected heading</div><h3 className="confirm-dialog-title">{VERIFICATION_SECTIONS.find((section) => section.id === editingApprovalSectionId)?.label}</h3><p className="confirm-dialog-text">Update this rejected heading here and send it back for review.</p><form onSubmit={saveApprovalSectionUpdate} className="admin-form admin-grid-form">{renderVerificationSectionFields(editingApprovalSectionId, approvalEditForm, setApprovalEditForm, setApprovalEditFiles)}<div className="confirm-dialog-actions"><button type="button" className="btn admin-secondary-button" onClick={closeApprovalSectionEditor}>Cancel</button><button type="submit" className={`btn btn-primary ${isApprovalEditSaving ? "is-loading" : ""}`} disabled={isApprovalEditSaving}>{isApprovalEditSaving ? "Updating..." : "Update"}</button></div></form></div></div> : null}
-      {deleteTarget ? <div className="confirm-dialog-backdrop" role="presentation"><div className="confirm-dialog-card" role="dialog" aria-modal="true"><div className="confirm-dialog-badge">Delete dish</div><h3 className="confirm-dialog-title">Confirm deletion</h3><p className="confirm-dialog-text">Delete <strong>{deleteTarget.name}</strong> from the live menu?</p><div className="confirm-dialog-actions"><button type="button" className="btn admin-secondary-button" onClick={() => setDeleteTarget(null)}>No</button><button type="button" className="btn admin-danger-button" onClick={deleteDish}>Yes, delete</button></div></div></div> : null}
+      {deleteTarget ? <div className="confirm-dialog-backdrop" role="presentation"><div className="confirm-dialog-card" role="dialog" aria-modal="true"><div className="confirm-dialog-badge">Delete dish</div><h3 className="confirm-dialog-title">Confirm deletion</h3><p className="confirm-dialog-text">Delete <strong>{deleteTarget.name}</strong> from the live menu?</p><div className="confirm-dialog-actions"><button type="button" className="btn admin-secondary-button" disabled={isDeletingDish} onClick={() => setDeleteTarget(null)}>No</button><button type="button" className={`btn admin-danger-button ${isDeletingDish ? "is-loading" : ""}`} disabled={isDeletingDish} onClick={deleteDish}>{isDeletingDish ? "Deleting..." : "Yes, delete"}</button></div></div></div> : null}
     </div>
   );
 }

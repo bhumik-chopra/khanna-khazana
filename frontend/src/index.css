@@ -188,6 +188,63 @@ select {
   box-shadow: 0 24px 48px rgba(255, 122, 26, 0.34);
 }
 
+.btn:disabled,
+.kk-auth-custom-button:disabled,
+.kk-auth-link-button:disabled,
+.kk-checkout-option:disabled {
+  cursor: wait;
+  opacity: 0.78;
+}
+
+.btn.is-loading,
+.kk-auth-custom-button.is-loading,
+.kk-auth-link-button.is-loading {
+  position: relative;
+}
+
+.btn.is-loading::after,
+.kk-auth-custom-button.is-loading::after,
+.kk-auth-link-button.is-loading::after {
+  content: "";
+  width: 0.9rem;
+  height: 0.9rem;
+  margin-left: 0.55rem;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.42);
+  border-top-color: rgba(255, 255, 255, 0.95);
+  animation: kkButtonSpin 0.8s linear infinite;
+}
+
+.kk-auth-link-button.is-loading::after {
+  border-color: rgba(10, 163, 92, 0.24);
+  border-top-color: var(--green-deep);
+}
+
+.kk-loading-state {
+  display: grid;
+  place-items: center;
+  min-height: 150px;
+  margin: 1rem 0 2rem;
+  padding: 1.2rem;
+  border-radius: 24px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(240, 255, 247, 0.78));
+  border: 1px solid rgba(10, 163, 92, 0.14);
+  color: var(--green-deep);
+  font-weight: 800;
+}
+
+.kk-loading-state::before {
+  content: "";
+  width: 2rem;
+  height: 2rem;
+  margin-bottom: 0.75rem;
+  border-radius: 50%;
+  border: 3px solid rgba(10, 163, 92, 0.16);
+  border-top-color: var(--orange);
+  animation: kkButtonSpin 0.85s linear infinite;
+}
+
 .btn-outline {
   color: var(--green-deep);
   background: rgba(255, 255, 255, 0.68);
@@ -1965,6 +2022,12 @@ select {
   }
   50% {
     transform: translateY(-10px);
+  }
+}
+
+@keyframes kkButtonSpin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
