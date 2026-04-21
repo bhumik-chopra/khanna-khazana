@@ -765,25 +765,25 @@ export default function RestPanel() {
           <div className="admin-content-panel">
             {activeTab === "approval" ? (
               <div className="admin-approval-view">
-                <section className="admin-panel-block">
-                  <div className="admin-form-header">
+                <section className="admin-panel-block admin-owner-approval-block">
+                  <div className="admin-form-header admin-owner-approval-header">
                     <h2>Submitted headings</h2>
                     <p>Only submitted headings are shown here. Rejected headings can be updated from this tab.</p>
                   </div>
                   <div className="admin-approval-section-list">
                     {submittedApprovalSections.map((section) => (
-                      <article key={section.id} className="admin-approval-section-card">
+                      <article key={section.id} className={`admin-approval-section-card admin-owner-approval-card admin-owner-approval-card-${section.workflow.status}`}>
                         <div className="admin-approval-section-head">
                           <div>
                             <strong>{section.title}</strong>
-                            <span>{SECTION_WORKFLOW_LABELS[section.workflow.status] || "Pending Review"}</span>
+                            <span className="admin-owner-approval-pill">{SECTION_WORKFLOW_LABELS[section.workflow.status] || "Pending Review"}</span>
                           </div>
                           {section.workflow.status === "rejected" ? <button type="button" className="btn admin-secondary-button" onClick={() => openApprovalSectionEditor(section.id)}>Update</button> : null}
                         </div>
                         {section.workflow.adminRemarks ? <div className="admin-section-remarks">Admin note: {section.workflow.adminRemarks}</div> : null}
                       </article>
                     ))}
-                    {!submittedApprovalSections.length ? <div className="admin-empty-state">Submitted headings will appear here after you send them for review.</div> : null}
+                    {!submittedApprovalSections.length ? <div className="admin-empty-state admin-owner-approval-empty">Submitted headings will appear here after you send them for review.</div> : null}
                   </div>
                 </section>
               </div>
