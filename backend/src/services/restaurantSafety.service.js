@@ -217,10 +217,6 @@ async function recalculateRestaurantSafety(restaurantId, metadata = {}) {
     restaurant.verificationSections
   );
 
-  if (inspection && restaurant.kitchenVerificationStatus === "verified" && safety.totalScore < 80) {
-    restaurant.kitchenVerificationStatus = "needs_reinspection";
-  }
-
   if (inspection?.inspectedAt) restaurant.lastInspectionDate = inspection.inspectedAt;
   if (inspection?.nextInspectionDate) restaurant.nextInspectionDate = inspection.nextInspectionDate;
   if (restaurant.kitchenVerificationStatus === "verified") {
@@ -265,8 +261,12 @@ function enrichRestaurantForResponse(restaurant, extras = {}) {
   if (!restaurant) return null;
 
   const json = restaurant.toObject ? restaurant.toObject() : { ...restaurant };
-  const displayStatus = json.kitchenVerificationStatus === "expired" ? "pending" : json.kitchenVerificationStatus;
   const headingSafety = getHeadingSafetySummary(json);
+  const displayStatus = headingSafety.allApproved
+    ? "verified"
+    : json.kitchenVerificationStatus === "expired"
+      ? "pending"
+      : json.kitchenVerificationStatus;
 
   return {
     ...json,

@@ -97,7 +97,10 @@ export default function Approval() {
     () => restaurants.filter((item) => item.kitchenVerificationStatus === "pending").length,
     [restaurants]
   );
-  const selectedStatus = String(selectedRestaurant?.kitchenVerificationStatus || "pending").replaceAll("_", " ");
+  const selectedDisplayStatus = selectedRestaurant?.headingSafety?.allApproved
+    ? "verified"
+    : selectedRestaurant?.kitchenVerificationStatus || "pending";
+  const selectedStatus = String(selectedDisplayStatus).replaceAll("_", " ");
 
   const submittedSections = useMemo(() => {
     const sectionStates = selectedRestaurant?.verificationSections || {};
@@ -240,8 +243,8 @@ export default function Approval() {
                 >
                   <strong>{item.name}</strong>
                   <span>{item.ownerName || item.ownerDisplayName || "Owner not added"}</span>
-                  <small className={`admin-status-mini admin-status-mini-${item.kitchenVerificationStatus || "pending"}`}>
-                    {String(item.kitchenVerificationStatus || "pending").replaceAll("_", " ")}
+                  <small className={`admin-status-mini admin-status-mini-${item.headingSafety?.allApproved ? "verified" : item.kitchenVerificationStatus || "pending"}`}>
+                    {String(item.headingSafety?.allApproved ? "verified" : item.kitchenVerificationStatus || "pending").replaceAll("_", " ")}
                   </small>
                 </button>
               ))}
@@ -265,7 +268,7 @@ export default function Approval() {
                     <span>{submittedSections.length}</span>
                     <small>submitted heading{submittedSections.length === 1 ? "" : "s"}</small>
                   </div>
-                  <div className={`admin-approval-summary-status admin-status-mini-${selectedRestaurant.kitchenVerificationStatus || "pending"}`}>
+                  <div className={`admin-approval-summary-status admin-status-mini-${selectedDisplayStatus}`}>
                     {selectedStatus}
                   </div>
                 </div>
