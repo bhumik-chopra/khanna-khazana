@@ -4,6 +4,7 @@ import Toast from "../components/Toast";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "https://khanna-khazana-3.onrender.com";
 const REVIEWER_NAME = "platform_admin";
+const APPROVAL_REFRESH_MS = 7000;
 const SECTION_DEFINITIONS = [
   { id: "basic_business", label: "Basic Business Details", details: [{ type: "field", field: "contactNumber", label: "Contact number" }, { type: "field", field: "restaurantAddress", label: "Restaurant address" }] },
   { id: "legal_compliance", label: "Legal and Compliance", details: [{ type: "field", field: "gstnNumber", label: "GSTN number" }, { type: "field", field: "fssaiLicenseNumber", label: "FSSAI number" }, { type: "field", field: "fssaiExpiryDate", label: "FSSAI expiry date" }, { type: "document", docType: "fssai_certificate", label: "FSSAI certificate" }] },
@@ -74,22 +75,22 @@ export default function Approval() {
     return data;
   }, [fetchJson, selectedRestaurantId]);
 
-  const loadRestaurantDetail = useCallback(async (restaurantId) => {
+  const loadRestaurantDetail = useCallback(async (restaurantId, options = {}) => {
     if (!restaurantId) {
       setSelectedRestaurant(null);
       return;
     }
 
     const detail = await fetchJson(`${API_BASE}/api/restaurants/${restaurantId}`);
-    setSelectedRestaurant(detail);
-    setSectionRemarks(
-      Object.fromEntries(
-        SECTION_DEFINITIONS.map((section) => [
-          section.id,
-          detail.verificationSections?.[section.id]?.adminRemarks || ""
-        ])
-      )
+    const nextRemarks = Object.fromEntries(
+      SECTION_DEFINITIONS.map((section) => [
+        section.id,
+        detail.verificationSections?.[section.id]?.adminRemarks || ""
+      ])
     );
+
+    setSelectedRestaurant(detail);
+    setSectionRemarks((current) => (options.preserveRemarks ? { ...nextRemarks, ...current } : nextRemarks));
   }, [fetchJson]);
 
   const pendingCount = useMemo(
@@ -143,6 +144,35 @@ export default function Approval() {
       showToast("error", "Detail failed", err.message || "Could not fetch restaurant details.")
     );
   }, [loadRestaurantDetail, selectedRestaurantId]);
+
+  useEffect(() => {
+    if (!adminToken) return undefined;
+
+    let isCancelled = false;
+    let timerId;
+
+    const refreshApprovals = async () => {
+      try {
+        const data = await loadRestaurants(selectedRestaurantId);
+        const nextSelectedId = selectedRestaurantId || data[0]?.id || "";
+        if (!isCancelled && nextSelectedId) {
+          await loadRestaurantDetail(nextSelectedId, { preserveRemarks: true });
+        }
+      } catch (err) {
+        console.warn("approval auto-refresh failed:", err);
+      } finally {
+        if (!isCancelled) {
+          timerId = window.setTimeout(refreshApprovals, APPROVAL_REFRESH_MS);
+        }
+      }
+    };
+
+    timerId = window.setTimeout(refreshApprovals, APPROVAL_REFRESH_MS);
+    return () => {
+      isCancelled = true;
+      window.clearTimeout(timerId);
+    };
+  }, [adminToken, loadRestaurantDetail, loadRestaurants, selectedRestaurantId]);
 
   const handleSectionReview = async (sectionId, decision) => {
     if (!selectedRestaurantId || !sectionId) return;
