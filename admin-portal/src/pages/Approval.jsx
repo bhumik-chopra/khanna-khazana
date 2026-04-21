@@ -97,6 +97,7 @@ export default function Approval() {
     () => restaurants.filter((item) => item.kitchenVerificationStatus === "pending").length,
     [restaurants]
   );
+  const selectedStatus = String(selectedRestaurant?.kitchenVerificationStatus || "pending").replaceAll("_", " ");
 
   const submittedSections = useMemo(() => {
     const sectionStates = selectedRestaurant?.verificationSections || {};
@@ -205,8 +206,8 @@ export default function Approval() {
 
   return (
     <div className="admin-panel-page">
-      <div className="container admin-panel-shell">
-        <header className="admin-panel-header">
+      <div className="container admin-panel-shell admin-approval-desk-shell">
+        <header className="admin-panel-header admin-approval-desk-header">
           <div>
             <div className="admin-badge">Admin Approval</div>
             <h1>Restaurant approval desk</h1>
@@ -223,7 +224,7 @@ export default function Approval() {
         </header>
 
         <div className="admin-panel-body">
-          <aside className="admin-side-panel">
+          <aside className="admin-side-panel admin-approval-sidebar">
             <div className="admin-form-header">
               <h2>Submitted restaurants</h2>
               <p>Choose a restaurant to review its submitted headings.</p>
@@ -239,28 +240,39 @@ export default function Approval() {
                 >
                   <strong>{item.name}</strong>
                   <span>{item.ownerName || item.ownerDisplayName || "Owner not added"}</span>
-                  <small>{String(item.kitchenVerificationStatus || "pending").replaceAll("_", " ")}</small>
+                  <small className={`admin-status-mini admin-status-mini-${item.kitchenVerificationStatus || "pending"}`}>
+                    {String(item.kitchenVerificationStatus || "pending").replaceAll("_", " ")}
+                  </small>
                 </button>
               ))}
             </div>
           </aside>
 
-          <section className="admin-content-panel">
+          <section className="admin-content-panel admin-approval-content-panel">
             {isLoading ? (
               <div className="admin-empty-state">Loading restaurant approvals...</div>
             ) : !selectedRestaurant ? (
               <div className="admin-empty-state">Pick a restaurant to review its headings.</div>
             ) : (
               <div className="admin-approval-view">
-                <div className="admin-panel-block">
-                  <strong>{selectedRestaurant.name}</strong>
-                  <span>{selectedRestaurant.ownerName || selectedRestaurant.ownerDisplayName || "Owner not provided"}</span>
-                  <span>{selectedRestaurant.restaurantAddress || selectedRestaurant.location || "No address provided"}</span>
+                <div className="admin-panel-block admin-approval-restaurant-summary">
+                  <div>
+                    <strong>{selectedRestaurant.name}</strong>
+                    <span>{selectedRestaurant.ownerName || selectedRestaurant.ownerDisplayName || "Owner not provided"}</span>
+                    <span>{selectedRestaurant.restaurantAddress || selectedRestaurant.location || "No address provided"}</span>
+                  </div>
+                  <div className="admin-approval-summary-pill">
+                    <span>{submittedSections.length}</span>
+                    <small>submitted heading{submittedSections.length === 1 ? "" : "s"}</small>
+                  </div>
+                  <div className={`admin-approval-summary-status admin-status-mini-${selectedRestaurant.kitchenVerificationStatus || "pending"}`}>
+                    {selectedStatus}
+                  </div>
                 </div>
 
                 <div className="admin-approval-section-list">
                   {submittedSections.map((section) => (
-                    <article key={section.id} className="admin-approval-section-card">
+                    <article key={section.id} className={`admin-approval-section-card admin-platform-approval-card admin-platform-approval-card-${section.status}`}>
                       <button
                         type="button"
                         className="admin-section-toggle"
@@ -268,7 +280,9 @@ export default function Approval() {
                       >
                         <div>
                           <strong>{section.label}</strong>
-                          <span>{SECTION_STATUS_LABELS[section.status] || "Pending"}</span>
+                          <span className={`admin-platform-status-pill admin-platform-status-pill-${section.status}`}>
+                            {SECTION_STATUS_LABELS[section.status] || "Pending"}
+                          </span>
                         </div>
                         <span className="admin-section-arrow">{expandedSectionId === section.id ? "▾" : "▸"}</span>
                       </button>

@@ -643,12 +643,54 @@ select {
   gap: 1.2rem;
 }
 
+.admin-approval-desk-shell {
+  width: min(1240px, calc(100% - 2rem));
+}
+
 .admin-panel-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
   padding: 1.6rem;
+}
+
+.admin-approval-desk-header {
+  position: relative;
+  overflow: hidden;
+  min-height: 176px;
+  padding: clamp(1.35rem, 2.6vw, 2rem);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(248, 255, 251, 0.82)),
+    linear-gradient(135deg, rgba(255, 122, 26, 0.06), rgba(10, 163, 92, 0.07));
+}
+
+.admin-approval-desk-header::before {
+  content: "";
+  position: absolute;
+  inset: auto 2rem 0 2rem;
+  height: 4px;
+  border-radius: 999px 999px 0 0;
+  background: linear-gradient(90deg, var(--orange), #ffaf1b, var(--green));
+  opacity: 0.72;
+}
+
+.admin-approval-desk-header::after {
+  content: "";
+  position: absolute;
+  width: 240px;
+  height: 240px;
+  right: -72px;
+  top: -92px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(10, 163, 92, 0.14), transparent 68%);
+  pointer-events: none;
+}
+
+.admin-approval-desk-header h1 {
+  max-width: 14ch;
+  font-size: clamp(2.6rem, 6vw, 5.1rem);
+  letter-spacing: 0;
 }
 
 .admin-panel-subheading {
@@ -702,11 +744,13 @@ select {
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
+  position: relative;
+  z-index: 1;
 }
 
 .admin-panel-body {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
   gap: 1.2rem;
 }
 
@@ -715,6 +759,16 @@ select {
   gap: 0.75rem;
   padding: 1rem;
   height: fit-content;
+}
+
+.admin-approval-sidebar {
+  position: sticky;
+  top: 1rem;
+  align-self: start;
+  padding: 1.2rem;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(255, 251, 246, 0.82)),
+    linear-gradient(135deg, rgba(255, 122, 26, 0.04), rgba(10, 163, 92, 0.04));
 }
 
 .admin-tab-button {
@@ -867,6 +921,28 @@ select {
   cursor: pointer;
 }
 
+.admin-restaurant-card {
+  position: relative;
+  overflow: hidden;
+  padding: 1.05rem 1.1rem;
+  border-radius: 18px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.admin-restaurant-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: transparent;
+}
+
+.admin-restaurant-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 122, 26, 0.22);
+  box-shadow: 0 18px 34px rgba(17, 22, 17, 0.08);
+}
+
 .admin-restaurant-card strong,
 .admin-document-card strong,
 .admin-audit-card strong,
@@ -890,7 +966,45 @@ select {
 .admin-restaurant-card.is-selected,
 .admin-complaint-card.is-selected {
   border-color: rgba(255, 122, 26, 0.4);
-  box-shadow: 0 16px 30px rgba(255, 122, 26, 0.12);
+  background:
+    linear-gradient(135deg, rgba(255, 249, 242, 0.96), rgba(241, 255, 248, 0.9));
+  box-shadow: 0 18px 34px rgba(255, 122, 26, 0.13);
+}
+
+.admin-restaurant-card.is-selected::before {
+  background: linear-gradient(180deg, var(--orange), var(--green));
+}
+
+.admin-status-mini,
+.admin-approval-summary-status,
+.admin-platform-status-pill {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border-radius: 999px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.admin-status-mini {
+  margin-top: 0.65rem;
+  padding: 0.34rem 0.58rem;
+  background: rgba(255, 175, 27, 0.16);
+  color: #a26300;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+}
+
+.admin-status-mini-verified,
+.admin-status-mini-pending {
+  background: rgba(10, 163, 92, 0.13);
+  color: #087142;
+}
+
+.admin-status-mini-rejected,
+.admin-status-mini-needs_reinspection {
+  background: rgba(255, 75, 66, 0.12);
+  color: #bd342d;
 }
 
 .admin-score-strip {
@@ -928,6 +1042,65 @@ select {
 .admin-approval-view {
   display: grid;
   gap: 1rem;
+}
+
+.admin-approval-content-panel {
+  padding: clamp(1.05rem, 2vw, 1.45rem);
+}
+
+.admin-approval-restaurant-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.15rem 1.25rem;
+  border-radius: 24px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(247, 255, 250, 0.9));
+  border-color: rgba(10, 163, 92, 0.12);
+}
+
+.admin-approval-restaurant-summary strong {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(1.1rem, 2vw, 1.35rem);
+}
+
+.admin-approval-restaurant-summary span {
+  display: block;
+  color: var(--muted);
+}
+
+.admin-approval-summary-pill {
+  min-width: 104px;
+  padding: 0.75rem 0.9rem;
+  border-radius: 18px;
+  text-align: center;
+  background: rgba(255, 122, 26, 0.1);
+  border: 1px solid rgba(255, 122, 26, 0.13);
+}
+
+.admin-approval-summary-pill span {
+  color: var(--ink);
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.admin-approval-summary-pill small {
+  display: block;
+  margin-top: 0.18rem;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.admin-approval-summary-status {
+  padding: 0.58rem 0.76rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
 }
 
 .admin-owner-approval-block {
@@ -1080,6 +1253,32 @@ select {
   border: 1px solid rgba(17, 22, 17, 0.06);
 }
 
+.admin-platform-approval-card {
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.88);
+  border-color: rgba(17, 22, 17, 0.075);
+  box-shadow: 0 14px 32px rgba(17, 22, 17, 0.055);
+}
+
+.admin-platform-approval-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: rgba(255, 175, 27, 0.8);
+}
+
+.admin-platform-approval-card-approved::before {
+  background: var(--green);
+}
+
+.admin-platform-approval-card-rejected::before {
+  background: #ff4b42;
+}
+
 .admin-owner-approval-card {
   position: relative;
   overflow: hidden;
@@ -1138,27 +1337,68 @@ select {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0;
+  padding: 1.05rem 1.15rem 1.05rem 1.35rem;
   border: 0;
   background: transparent;
   text-align: left;
   cursor: pointer;
 }
 
+.admin-section-toggle > div {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
 .admin-section-arrow {
-  font-size: 1.1rem;
+  width: 2.05rem;
+  height: 2.05rem;
+  display: grid;
+  place-items: center;
+  flex: 0 0 2.05rem;
+  border-radius: 999px;
+  background: rgba(17, 22, 17, 0.045);
+  font-size: 0.9rem;
   color: var(--muted);
 }
 
 .admin-approval-section-content {
   display: grid;
   gap: 0.9rem;
-  margin-top: 1rem;
+  margin: 0 1.15rem 1.15rem 1.35rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(17, 22, 17, 0.07);
 }
 
 .admin-approval-section-head strong,
 .admin-review-item-topline strong {
   display: block;
+}
+
+.admin-platform-approval-card .admin-section-toggle strong {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(1rem, 1.5vw, 1.12rem);
+  line-height: 1.2;
+}
+
+.admin-platform-status-pill {
+  padding: 0.38rem 0.62rem;
+  background: rgba(255, 175, 27, 0.16);
+  color: #a26300;
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.admin-platform-status-pill-approved {
+  background: rgba(10, 163, 92, 0.13);
+  color: #087142;
+}
+
+.admin-platform-status-pill-rejected {
+  background: rgba(255, 75, 66, 0.13);
+  color: #bd342d;
 }
 
 .admin-owner-approval-card .admin-approval-section-head {
@@ -1217,7 +1457,9 @@ select {
   padding: 0.95rem 1rem;
   border-radius: 18px;
   border: 1px solid rgba(17, 22, 17, 0.08);
-  background: rgba(255, 255, 255, 0.88);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(249, 255, 252, 0.84));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
 .admin-review-item-passed {
@@ -1290,6 +1532,11 @@ select {
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
+  padding-top: 0.2rem;
+}
+
+.admin-approval-actions .btn {
+  min-width: 130px;
 }
 
 .admin-dish-row {
@@ -1373,6 +1620,14 @@ select {
     grid-template-columns: 1fr;
   }
 
+  .admin-approval-sidebar {
+    position: static;
+  }
+
+  .admin-approval-restaurant-summary {
+    grid-template-columns: 1fr;
+  }
+
   .admin-login-highlights,
   .admin-grid-form,
   .admin-score-strip,
@@ -1420,6 +1675,24 @@ select {
   .admin-panel-identity-divider {
     width: 100%;
     height: 1px;
+  }
+
+  .admin-approval-desk-header h1 {
+    font-size: clamp(2.25rem, 13vw, 3.5rem);
+  }
+
+  .admin-section-toggle,
+  .admin-section-toggle > div,
+  .admin-approval-actions {
+    align-items: stretch;
+  }
+
+  .admin-section-toggle > div {
+    flex-direction: column;
+  }
+
+  .admin-platform-status-pill {
+    white-space: normal;
   }
 }
 
