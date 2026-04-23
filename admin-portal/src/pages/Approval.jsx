@@ -200,9 +200,9 @@ export default function Approval() {
       });
       await loadRestaurants(selectedRestaurantId);
       await loadRestaurantDetail(selectedRestaurantId);
-      showToast("success", decision === "approve" ? "Heading accepted" : "Heading rejected", "The heading review has been updated.");
+      showToast("success", decision === "approve" ? "Document accepted" : "Document rejected", "The document review has been updated.");
     } catch (err) {
-      showToast("error", "Section review failed", err.message || "Could not review the heading.");
+      showToast("error", "Section review failed", err.message || "Could not review the document.");
     } finally {
       setSavingSectionId("");
     }
@@ -220,7 +220,7 @@ export default function Approval() {
           <div>
             <div className="admin-badge">Admin Approval</div>
             <h1>Restaurant approval desk</h1>
-            <p>Review each submitted heading one by one.</p>
+            <p>Review each submitted document one by one.</p>
             <div className="admin-panel-subheading">
               {pendingCount} pending review{pendingCount === 1 ? "" : "s"}
             </div>
@@ -236,7 +236,7 @@ export default function Approval() {
           <aside className="admin-side-panel admin-approval-sidebar">
             <div className="admin-form-header">
               <h2>Submitted restaurants</h2>
-              <p>Choose a restaurant to review its submitted headings.</p>
+              <p>Choose a restaurant to review its submitted documents.</p>
             </div>
 
             <div className="admin-restaurant-list">
@@ -268,7 +268,7 @@ export default function Approval() {
             ) : isDetailLoading && !selectedRestaurant ? (
               <div className="admin-empty-state">Loading selected restaurant...</div>
             ) : !selectedRestaurant ? (
-              <div className="admin-empty-state">Pick a restaurant to review its headings.</div>
+              <div className="admin-empty-state">Pick a restaurant to review its documents.</div>
             ) : (
               <div className="admin-approval-view">
                 <div className="admin-panel-block admin-approval-restaurant-summary">
@@ -279,7 +279,7 @@ export default function Approval() {
                   </div>
                   <div className="admin-approval-summary-pill">
                     <span>{submittedSections.length}</span>
-                    <small>submitted heading{submittedSections.length === 1 ? "" : "s"}</small>
+                    <small>submitted document{submittedSections.length === 1 ? "" : "s"}</small>
                   </div>
                   <div className={`admin-approval-summary-status admin-status-mini-${selectedDisplayStatus}`}>
                     {selectedStatus}
@@ -323,7 +323,7 @@ export default function Approval() {
                               rows={3}
                               value={sectionRemarks[section.id] || ""}
                               onChange={(e) => setSectionRemarks((current) => ({ ...current, [section.id]: e.target.value }))}
-                              placeholder="Add heading-specific feedback."
+                              placeholder="Add document-specific feedback."
                             />
                           </label>
 
@@ -351,7 +351,7 @@ export default function Approval() {
                   ))}
 
                   {!submittedSections.length ? (
-                    <div className="admin-empty-state">No submitted headings yet for this restaurant.</div>
+                    <div className="admin-empty-state">No submitted documents yet for this restaurant.</div>
                   ) : null}
                 </div>
               </div>

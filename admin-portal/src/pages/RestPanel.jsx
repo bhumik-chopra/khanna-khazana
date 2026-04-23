@@ -771,8 +771,8 @@ export default function RestPanel() {
               <div className="admin-approval-view">
                 <section className="admin-panel-block admin-owner-approval-block">
                   <div className="admin-form-header admin-owner-approval-header">
-                    <h2>Submitted headings</h2>
-                    <p>Only submitted headings are shown here. Rejected headings can be updated from this tab.</p>
+                    <h2>Submitted documents</h2>
+                    <p>Only submitted documents are shown here. Rejected documents can be updated from this tab.</p>
                   </div>
                   <div className="admin-approval-section-list">
                     {submittedApprovalSections.map((section) => (
@@ -787,7 +787,7 @@ export default function RestPanel() {
                         {section.workflow.adminRemarks ? <div className="admin-section-remarks">Admin note: {section.workflow.adminRemarks}</div> : null}
                       </article>
                     ))}
-                    {!submittedApprovalSections.length ? <div className="admin-empty-state admin-owner-approval-empty">Submitted headings will appear here after you send them for review.</div> : null}
+                    {!submittedApprovalSections.length ? <div className="admin-empty-state admin-owner-approval-empty">Submitted documents will appear here after you send them for review.</div> : null}
                   </div>
                 </section>
               </div>
@@ -798,11 +798,11 @@ export default function RestPanel() {
                 <div className="admin-form-header"><h2>Restaurant verification submission</h2><p>Submit only the required restaurant verification details, compliance proof, and kitchen safety uploads.</p></div>
                 <div className="admin-form admin-grid-form">
                   <div className="admin-form-header">
-                    <h2>Choose submission heading</h2>
-                    <p>Only headings that have not been submitted yet appear here. Rejected headings can be updated from Approval Status.</p>
+                    <h2>Choose submission document</h2>
+                    <p>Only documents that have not been submitted yet appear here. Rejected documents can be updated from Approval Status.</p>
                   </div>
                   <label className="admin-field admin-field-full">
-                    <span>Submission heading</span>
+                    <span>Submission document</span>
                     <select value={selectedVerificationSection} onChange={(e) => setSelectedVerificationSection(e.target.value)} disabled={!availableSafetySections.length}>
                       {availableSafetySections.map((section) => <option key={section.id} value={section.id}>{section.label}</option>)}
                     </select>
@@ -814,7 +814,7 @@ export default function RestPanel() {
                   <button className={`btn btn-primary admin-button-full ${isSubmittingVerification ? "is-loading" : ""}`} disabled={isSubmittingVerification}>
                     {isSubmittingVerification ? "Sending details..." : `Submit ${VERIFICATION_SECTIONS.find((section) => section.id === selectedVerificationSection)?.label}`}
                   </button>
-                </form> : <div className="admin-empty-state">All headings have already been submitted. Review updates from the Approval Status tab.</div>}
+                </form> : <div className="admin-empty-state">All documents have already been submitted. Review updates from the Approval Status tab.</div>}
                 </>
               </div>
             ) : null}
@@ -837,7 +837,7 @@ export default function RestPanel() {
         </section>
       </div>
       <Toast open={toast.open} type={toast.type} title={toast.title} message={toast.message} onClose={() => setToast((t) => ({ ...t, open: false }))} />
-      {editingApprovalSectionId ? <div className="confirm-dialog-backdrop" role="presentation"><div className="confirm-dialog-card admin-section-modal" role="dialog" aria-modal="true"><div className="confirm-dialog-badge">Update rejected heading</div><h3 className="confirm-dialog-title">{VERIFICATION_SECTIONS.find((section) => section.id === editingApprovalSectionId)?.label}</h3><p className="confirm-dialog-text">Update this rejected heading here and send it back for review.</p><form onSubmit={saveApprovalSectionUpdate} className="admin-form admin-grid-form">{renderVerificationSectionFields(editingApprovalSectionId, approvalEditForm, setApprovalEditForm, setApprovalEditFiles)}<div className="confirm-dialog-actions"><button type="button" className="btn admin-secondary-button" onClick={closeApprovalSectionEditor}>Cancel</button><button type="submit" className={`btn btn-primary ${isApprovalEditSaving ? "is-loading" : ""}`} disabled={isApprovalEditSaving}>{isApprovalEditSaving ? "Updating..." : "Update"}</button></div></form></div></div> : null}
+      {editingApprovalSectionId ? <div className="confirm-dialog-backdrop" role="presentation"><div className="confirm-dialog-card admin-section-modal" role="dialog" aria-modal="true"><div className="confirm-dialog-badge">Update rejected document</div><h3 className="confirm-dialog-title">{VERIFICATION_SECTIONS.find((section) => section.id === editingApprovalSectionId)?.label}</h3><p className="confirm-dialog-text">Update this rejected document here and send it back for review.</p><form onSubmit={saveApprovalSectionUpdate} className="admin-form admin-grid-form">{renderVerificationSectionFields(editingApprovalSectionId, approvalEditForm, setApprovalEditForm, setApprovalEditFiles)}<div className="confirm-dialog-actions"><button type="button" className="btn admin-secondary-button" onClick={closeApprovalSectionEditor}>Cancel</button><button type="submit" className={`btn btn-primary ${isApprovalEditSaving ? "is-loading" : ""}`} disabled={isApprovalEditSaving}>{isApprovalEditSaving ? "Updating..." : "Update"}</button></div></form></div></div> : null}
       {deleteTarget ? <div className="confirm-dialog-backdrop" role="presentation"><div className="confirm-dialog-card" role="dialog" aria-modal="true"><div className="confirm-dialog-badge">Delete dish</div><h3 className="confirm-dialog-title">Confirm deletion</h3><p className="confirm-dialog-text">Delete <strong>{deleteTarget.name}</strong> from the live menu?</p><div className="confirm-dialog-actions"><button type="button" className="btn admin-secondary-button" disabled={isDeletingDish} onClick={() => setDeleteTarget(null)}>No</button><button type="button" className={`btn admin-danger-button ${isDeletingDish ? "is-loading" : ""}`} disabled={isDeletingDish} onClick={deleteDish}>{isDeletingDish ? "Deleting..." : "Yes, delete"}</button></div></div></div> : null}
     </div>
   );

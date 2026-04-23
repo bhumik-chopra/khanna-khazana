@@ -110,16 +110,16 @@ const RestaurantDetailPage = ({ apiBase }) => {
 
             <div className="restaurant-detail-grid">
               <div className="restaurant-detail-card">
-                <h3>Heading approval snapshot</h3>
+                <h3>Document approval snapshot</h3>
                 <ul className="restaurant-detail-list">
-                  <li>Approved headings: {restaurant.headingSafety?.approved || 0} of {restaurant.headingSafety?.total || 0}</li>
-                  <li>Submitted headings: {restaurant.headingSafety?.submitted || 0} of {restaurant.headingSafety?.total || 0}</li>
-                  <li>Heading score: {headingScore}</li>
+                  <li>Approved documents: {restaurant.headingSafety?.approved || 0} of {restaurant.headingSafety?.total || 0}</li>
+                  <li>Submitted documents: {restaurant.headingSafety?.submitted || 0} of {restaurant.headingSafety?.total || 0}</li>
+                  <li>Document score: {headingScore}</li>
                 </ul>
               </div>
 
               <div className="restaurant-detail-card">
-                <h3>Approved heading details</h3>
+                <h3>Approved document details</h3>
                 <div className="restaurant-heading-detail-list">
                   {headingDetails.map((section) => (
                     <section key={section.id} className="restaurant-heading-detail">

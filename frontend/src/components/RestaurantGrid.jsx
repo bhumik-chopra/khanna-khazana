@@ -2,7 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 
 const badgeLabels = [
-  ["verifiedKitchen", "All Headings Approved"],
+  ["verifiedKitchen", "All Documents Approved"],
   ["safePackaging", "Packaging Approved"]
 ];
 
@@ -27,7 +27,7 @@ const RestaurantGrid = ({ restaurants, onReport }) => (
         </div>
 
         <p className="restaurant-card-copy">
-          {restaurant.description || "Safety profile based on submitted headings approved by KK Control."}
+          {restaurant.description || "Safety profile based on submitted documents approved by KK Control."}
         </p>
 
         <div className="restaurant-badge-list">
@@ -46,12 +46,12 @@ const RestaurantGrid = ({ restaurants, onReport }) => (
             <dd>{restaurant.fssaiLicenseNumber || "Awaiting upload"}</dd>
           </div>
           <div>
-            <dt>Approved headings</dt>
+            <dt>Approved documents</dt>
             <dd>{headingCount(restaurant)}</dd>
           </div>
           <div>
             <dt>Safety basis</dt>
-            <dd>Headings</dd>
+            <dd>Documents</dd>
           </div>
         </dl>
 

@@ -17,7 +17,7 @@ const SafetyFilterBar = ({ filters, onChange }) => (
         checked={filters.scoreAbove80}
         onChange={(e) => onChange("scoreAbove80", e.target.checked)}
       />
-      <span>Heading score above 80</span>
+      <span>Document score above 80</span>
     </label>
 
     <label className="safety-filter-pill">
@@ -26,7 +26,7 @@ const SafetyFilterBar = ({ filters, onChange }) => (
         checked={filters.safePackaging}
         onChange={(e) => onChange("safePackaging", e.target.checked)}
       />
-      <span>Packaging heading approved</span>
+      <span>Packaging document approved</span>
     </label>
   </div>
 );

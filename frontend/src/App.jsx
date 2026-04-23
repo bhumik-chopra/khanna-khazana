@@ -557,7 +557,7 @@ function MainSite({ clerkEnabled, isSignedIn }) {
               <p className="badge badge-glass">Trusted kitchens</p>
               <h2 className="section-title">Browse restaurants with visible safety status</h2>
               <p className="section-subtitle">
-                Filter kitchens by approved safety headings, heading score, and packaging approval before you order.
+                Filter kitchens by approved safety documents, document score, and packaging approval before you order.
               </p>
             </div>
 
